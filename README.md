@@ -10,8 +10,8 @@ The motivation for this project is to learn more about machine learning and to b
 
 ## Name
 
-The name FART is a play on the phrase "financial analysis and real-time trading". It is also the name of a gaseous being who appeared in the episode [Mortynight Run
-](https://www.imdb.com/title/tt4832254/) of the Rick and Morty series. There is a bit of musical part in the episode, which really enjoyed. 
+The name FART is a abbreviation play on the title "Financial Analysis and Real-time Trading". It is also the name of a gaseous being who appeared in the episode [Mortynight Run
+](https://www.imdb.com/title/tt4832254/) of the Rick and Morty series. There is a bit of musical part in the episode, which I really enjoyed. 
 
 ## Project Structure
 
