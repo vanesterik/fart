@@ -15,7 +15,7 @@ dependencies = [
     "pyarrow>=16.0.0",
     "python-bitvavo-api>=1.3.3",
     "python-dotenv>=1.0.1",
-    "ta-lib>=0.4.28",
+    "ta-lib>=0.4.31",
     "scikit-learn>=1.4.2",
     "xgboost>=2.0.3",
     "statsmodels>=0.14.2",
@@ -35,6 +35,7 @@ dev = [
     "isort>=5.13.2",
     "mypy>=1.8.0",
     "ruff>=0.1.14",
+    "pytest>=8.2.2",
 ]
 
 [build-system]

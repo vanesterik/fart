@@ -17,11 +17,11 @@ requirements:
 	pdm install
 
 ## Pull data from remote sources
-pull:
+pull_data:
 	pdm run src/data/pull_data.py data/raw
 
 ## Process raw data into cleaned data
-process:
+process_data:
 	pdm run src/data/process_data.py data/raw/BTC-EUR.csv data/processed
 
 ## Clean up processed data
@@ -38,6 +38,10 @@ format:
 lint:
 	pdm run ruff src
 	pdm run mypy src
+
+## Test code
+test:
+	pdm run pytest src
 
 #################################################################################
 # PROJECT RULES                                                                 #

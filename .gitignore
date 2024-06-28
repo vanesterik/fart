@@ -162,7 +162,10 @@ cython_debug/
 #.idea/
 
 # exclude data from source control by default
-/data/
+data/processed/*
+!data/processed/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
 
 # OS generated files
 .DS_Store
