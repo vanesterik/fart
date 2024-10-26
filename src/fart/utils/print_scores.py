@@ -1,4 +1,4 @@
-from .print_in_columns import print_in_columns
+from fart.utils.print_in_columns import print_in_columns
 
 
 def print_scores(train_score: float, test_score: float) -> None:
