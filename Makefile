@@ -1,33 +1,30 @@
-.PHONY: clean data format help lint pull requirements test train
+.PHONY: \
+	clean \
+	data \
+	format \
+	help \
+	lint \
+	requirements \
+	run \
+	test \
+	train
 
-#################################################################################
-# GLOBALS                                                                       #
-#################################################################################
+
+################################################################################
+# GLOBALS                                                                      #
+################################################################################
 
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PROJECT_NAME = fart
-PYTHON_INTERPRETER = python3
 
-#################################################################################
-# COMMANDS                                                                      #
-#################################################################################
 
-## Install Python Dependencies
-requirements:
-	pdm install
+################################################################################
+# COMMANDS                                                                     #
+################################################################################
 
-## Pull data from remote sources
-pull_data:
-	pdm run src/data/pull_data.py data/raw
-
-## Process raw data into cleaned data
-process_data:
-	pdm run src/data/process_data.py data/raw/BTC-EUR.csv data/processed
-
-## Clean up processed data
+## Clean up data
 clean:
-	@echo "cleaning all files in data/processed except .gitkeep"
-	find data/processed -type f ! -name '.gitkeep' -delete
+	find ./data -type f ! -name '.gitkeep' -delete\
 
 ## Format code
 format:
@@ -39,19 +36,39 @@ lint:
 	pdm run ruff src
 	pdm run mypy src
 
+## Install dependencies
+requirements:
+	pdm install
+
 ## Test code
 test:
-	pdm run pytest src
+	pdm run pytest
 
-#################################################################################
-# PROJECT RULES                                                                 #
-#################################################################################
+## Test code in watch mode
+test_watch:
+	pdm run ptw
 
 
+################################################################################
+# PROJECT RULES                                                                #
+################################################################################
 
-#################################################################################
-# Self Documenting Commands                                                     #
-#################################################################################
+## Run main script
+run:
+	pdm run ${PROJECT_DIR}/src/${PROJECT_NAME}/main.py
+
+## Retrieve data from source
+data:
+	pdm run ${PROJECT_DIR}/src/${PROJECT_NAME}/data/main.py
+
+## Generate visualization
+visual:
+	pdm run ${PROJECT_DIR}/src/${PROJECT_NAME}/visualization/main.py
+
+
+################################################################################
+# Self Documenting Commands                                                    #
+################################################################################
 
 .DEFAULT_GOAL := help
 
