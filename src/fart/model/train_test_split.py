@@ -9,6 +9,7 @@ from fart.constants import feature_names as fn
 
 def train_test_split(
     df: pl.DataFrame,
+    test_size: float = 0.2,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
     """
     Split the data into training and testing sets.
@@ -16,10 +17,14 @@ def train_test_split(
     Parameters
     ----------
     - df (pl.DataFrame): A DataFrame containing the data to split.
+    - test_size (float): The proportion of the data to include in the test
+      split. This can also be an integer representing the number of rows to
+      include in the test split.
 
     Returns
     -------
-    - Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]: A tuple containing the following:
+    - Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]: A tuple
+      containing the following:
         - X_train (pd.DataFrame): Training data
         - X_test (pd.DataFrame): Testing data
         - y_train (pd.Series): Training target
@@ -58,7 +63,7 @@ def train_test_split(
         y,
         random_state=42,  # Set random state for reproducibility
         shuffle=False,  # Do not shuffle the data as is time series data
-        test_size=120,  # 120 minutes = 2 hours
+        test_size=test_size,
     )
 
     # Return the split data in a tuple

@@ -32,7 +32,7 @@ class CandlestickChart:
         self._marker = "o"
         self._marker_size = 100
 
-    def plot(self, timestamp: Optional[int] = None) -> None:
+    def plot(self, timestamp: Optional[int] = None, window_size: int = 120) -> None:
         """
         Plot a candlestick chart based on the passed Pandas DataFrame. The plot
         will include various technical indicators such as Bollinger Bands,
@@ -44,11 +44,14 @@ class CandlestickChart:
         ----------
         - timestamp (Optional[int]): Timestamp to plot the chart around (if
           available).
+        - window_size (int): Number of candles to plot. This because the plot
+          can get too crowded with too many candles on the chart at once and
+          become unreadable.
 
         """
 
         # Slice the data window based on the passed timestamp
-        data_window = self._slice_data_window(timestamp)
+        data_window = self._slice_data_window(timestamp, window_size)
         # Define indicator plots based on all technical indicators
         indicators = self._add_indicator_plots(data_window)
         # Add trade signals where applicable to the indicator plots
@@ -58,21 +61,20 @@ class CandlestickChart:
         mpf.plot(
             data_window,
             addplot=indicators,
-            figsize=(21, 15),
+            figsize=(24, 13.5),
             style="tradingview",
             type="hollow_and_filled",
         )
 
-    def _slice_data_window(self, timestamp: Optional[int] = None) -> pd.DataFrame:
-        # Define maximum number of candles to plot, this because the plot can
-        # get too crowded with too many candles on the chart at once and become
-        # unreadable.
-        window_size = 120
-
-        # Filter DataFrame based 60 before and 60 after the timestamp, but
-        # making sure to not go out of bounds at the start or end of the
-        # DataFrame when passed timestamp is too close to the start or end of
-        # the data.
+    def _slice_data_window(
+        self,
+        timestamp: Optional[int] = None,
+        window_size: int = 120,
+    ) -> pd.DataFrame:
+        # Filter DataFrame based half of window size before and after the
+        # timestamp, but making sure to not go out of bounds at the start or end
+        # of the DataFrame when passed timestamp is too close to the start or
+        # end of the data.
         if timestamp:
             # Find the index of the timestamp in the DataFrame
             center_index = self._df[fn.TIMESTAMP].searchsorted(timestamp)

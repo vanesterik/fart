@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Tuple
 
 import polars as pl
 
+from fart.constants import classes as cl
 from fart.constants import feature_names as fn
 
 
@@ -9,7 +10,7 @@ class TradeStrategy:
     def __init__(
         self,
         df: pl.DataFrame,
-        initial_amount: float = 500,
+        initial_capital: float = 500,
         transaction_cost: float = 0.0,
     ) -> None:
         """
@@ -20,18 +21,26 @@ class TradeStrategy:
         Parameters
         ----------
         - df (pl.DataFrame): DataFrame containing the necessary columns.
-        - initial_amount (float): Initial amount to start trading with.
+        - initial_capital (float): Initial capital to start trading with.
         - transaction_cost (float): Transaction cost percentage per trade.
 
         """
 
         self._df = df
-        self._initial_amount = initial_amount
+        self._initial_capital = initial_capital
         self._is_open_position = False
-        self._proceeds = initial_amount
+        self._proceeds = initial_capital
         self._shares = 0.0
         self._trades: List[Tuple[Any, Any, float, float, float]] = []
         self._transaction_cost = transaction_cost
+
+    @property
+    def initial_capital(self) -> float:
+        """
+        Returns the initial capital used to backtest the trading strategy.
+
+        """
+        return self._initial_capital
 
     @property
     def proceeds(self) -> float:
@@ -49,7 +58,7 @@ class TradeStrategy:
         the initial amount.
 
         """
-        return (self._proceeds - self._initial_amount) / self._initial_amount
+        return (self._proceeds - self._initial_capital) / self._initial_capital
 
     @property
     def trades(self) -> List[Tuple[Any, Any, float, float, float]]:
@@ -79,8 +88,8 @@ class TradeStrategy:
 
     def _process_row(self, row: Dict[str, Any]) -> None:
         """
-        Process a row in the DataFrame. If the trade signal is 1 and there is no
-        open position, open a position. If the trade signal is -1 and there is
+        Process a row in the DataFrame. If it is a buy trade signal there is no
+        open position, open a position. If it is a sell trade signal there is
         an open position, close the position.
 
         Parameters
@@ -88,9 +97,10 @@ class TradeStrategy:
         - row (Dict[str, Any]]]): Row in the DataFrame
 
         """
-        if row[fn.TRADE_SIGNAL] == 1 and not self._is_open_position:
+        if row[fn.TRADE_SIGNAL] == cl.BUY and not self._is_open_position:
             self._open_position(row)
-        elif row[fn.TRADE_SIGNAL] == -1 and self._is_open_position:
+
+        elif row[fn.TRADE_SIGNAL] == cl.SELL and self._is_open_position:
             self._close_position(row)
 
     def _open_position(self, row: Dict[str, Any]) -> None:
