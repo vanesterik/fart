@@ -1,6 +1,6 @@
 import json
 from os import getenv
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from dotenv import find_dotenv, load_dotenv
 from python_bitvavo_api.bitvavo import Bitvavo
