@@ -1,7 +1,4 @@
-import time
-from ast import expr
-from os import close, times
-from typing import Any, Dict, List, Tuple
+from typing import List, Tuple
 
 import polars as pl
 

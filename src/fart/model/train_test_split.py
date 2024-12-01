@@ -35,27 +35,11 @@ def train_test_split(
     # Transform to pandas dataframe and drop nulls
     pandas_df = df.to_pandas()
 
-    # Drop NaN values
-    pandas_df.dropna(inplace=True)
-
     # Filter predictor columns and reshape to 1D array
-    X = pandas_df[
-        [
-            fn.BBANDS_UPPER,
-            fn.BBANDS_MIDDLE,
-            fn.BBANDS_LOWER,
-            fn.EMA_FAST,
-            fn.EMA_SLOW,
-            fn.MACD,
-            fn.MACD_SIGNAL,
-            fn.MACD_HISTOGRAM,
-            fn.RSI,
-            fn.TIMESTAMP,
-        ]
-    ]
+    X = pandas_df.drop(columns=fn.TRADE_SIGNAL)
 
     # Filter target column
-    y = pandas_df[fn.CLOSE]
+    y = pandas_df[fn.TRADE_SIGNAL]
 
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = base_train_test_split(
