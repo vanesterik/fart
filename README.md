@@ -1,4 +1,4 @@
-![FART](./fart.webp)
+![FART](./references/fart.webp)
 
 # FART
 
@@ -73,6 +73,8 @@ make run # to run the trading agent
 ```
 
 This will start the initialization of the trading agent by optionally training the model and then running the agent.
+
+![FART](./references/dashboard.png)
 
 Other commands are:
 
