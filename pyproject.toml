@@ -13,29 +13,40 @@ dependencies = [
     "polars>=1.1.0",
     "pyarrow>=16.0.0",
     "pydantic>=2.9.2",
-    "python-bitvavo-api>=1.3.3",
     "python-dotenv>=1.0.1",
     "scikit-learn>=1.4.2",
     "seaborn>=0.13.2",
     "statsmodels>=0.14.2",
     "ta-lib>=0.4.31",
+    "tabulate>=0.9.0",
     "tensorflow>=2.16.1",
     "xgboost>=2.0.3",
-    "tabulate>=0.9.0",
+    "python-bitvavo-api>=1.4.2",
+    "babel>=2.16.0",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "MIT" }
 
 
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+[dependency-groups]
+dev = [
+    "black>=24.1.1",
+    "isort>=5.13.2",
+    "mypy>=1.10.1",
+    "ruff>=0.1.14",
+    "pytest>=8.2.2",
+    "pytest-watch>=4.2.0",
+    "autoflake>=2.3.1",
+]
 
 
-[tool.flake8]
-max-line-length = 79
-max-complexity = 10
+[tool.pdm]
+distribution = true
+
+
+[tool.autoflake]
+check = true
 
 
 [tool.isort]
@@ -67,20 +78,6 @@ strict_optional = true
 warn_redundant_casts = true
 warn_return_any = true
 warn_unused_ignores = true
-
-
-[tool.pdm]
-distribution = true
-
-[tool.pdm.dev-dependencies]
-dev = [
-    "black>=24.1.1",
-    "isort>=5.13.2",
-    "mypy>=1.10.1",
-    "ruff>=0.1.14",
-    "pytest>=8.2.2",
-    "pytest-watch>=4.2.0",
-]
 
 
 [tool.pytest.ini_options]

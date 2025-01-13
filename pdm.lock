@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:3bc07ef328b2944c1fffa05017c7241dae83468b64c0bce860b3861c90eddbf8"
+content_hash = "sha256:1a325d0ce5bc4d30813a61b51aa549fdf5d71698c9de94d5f0442a0f2a8ec8c9"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -183,17 +183,32 @@ files = [
 ]
 
 [[package]]
+name = "autoflake"
+version = "2.3.1"
+requires_python = ">=3.8"
+summary = "Removes unused imports and unused variables"
+groups = ["dev"]
+dependencies = [
+    "pyflakes>=3.0.0",
+    "tomli>=2.0.1; python_version < \"3.11\"",
+]
+files = [
+    {file = "autoflake-2.3.1-py3-none-any.whl", hash = "sha256:3ae7495db9084b7b32818b4140e6dc4fc280b712fb414f5b8fe57b0a8e85a840"},
+    {file = "autoflake-2.3.1.tar.gz", hash = "sha256:c98b75dc5b0a86459c4f01a1d32ac7eb4338ec4317a4469515ff1e687ecd909e"},
+]
+
+[[package]]
 name = "babel"
-version = "2.14.0"
-requires_python = ">=3.7"
+version = "2.16.0"
+requires_python = ">=3.8"
 summary = "Internationalization utilities"
 groups = ["default"]
 dependencies = [
     "pytz>=2015.7; python_version < \"3.9\"",
 ]
 files = [
-    {file = "Babel-2.14.0-py3-none-any.whl", hash = "sha256:efb1a25b7118e67ce3a259bed20545c29cb68be8ad2c784c83689981b7a57287"},
-    {file = "Babel-2.14.0.tar.gz", hash = "sha256:6919867db036398ba21eb5c7a0f6b28ab8cbc3ae7a73a44ebe34ae74a4e7d363"},
+    {file = "babel-2.16.0-py3-none-any.whl", hash = "sha256:368b5b98b37c06b7daf6696391c3240c938b37767d4584413e8438c5c435fa8b"},
+    {file = "babel-2.16.0.tar.gz", hash = "sha256:d1f3554ca26605fe173f3de0c65f750f5a42f924499bf134de6423582298e316"},
 ]
 
 [[package]]
@@ -1851,6 +1866,17 @@ files = [
 ]
 
 [[package]]
+name = "pyflakes"
+version = "3.2.0"
+requires_python = ">=3.8"
+summary = "passive checker of Python programs"
+groups = ["dev"]
+files = [
+    {file = "pyflakes-3.2.0-py2.py3-none-any.whl", hash = "sha256:84b5be138a2dfbb40689ca07e2152deb896a65c3a3e24c251c5c62489568074a"},
+    {file = "pyflakes-3.2.0.tar.gz", hash = "sha256:1c61603ff154621fb2a9172037d84dca3500def8c8b630657d1701f026f8af3f"},
+]
+
+[[package]]
 name = "pygments"
 version = "2.17.2"
 requires_python = ">=3.7"
@@ -1908,18 +1934,18 @@ files = [
 
 [[package]]
 name = "python-bitvavo-api"
-version = "1.3.3"
+version = "1.4.2"
 requires_python = ">=3.6"
 summary = "Use Bitvavo SDK for Python to buy, sell, and store over 200 digital assets on Bitvavo from inside your app."
 groups = ["default"]
 dependencies = [
-    "requests==2.31.0",
+    "requests<3.0.0,>=2.31.0",
     "setuptools",
-    "websocket-client",
+    "websocket-client<2.0.0,>=1.6.0",
 ]
 files = [
-    {file = "python_bitvavo_api-1.3.3-py3-none-any.whl", hash = "sha256:2688fc051d8bd75cf6fd22fa2bbd6c0c873c29960be78cbfaa7279d24e216bbc"},
-    {file = "python_bitvavo_api-1.3.3.tar.gz", hash = "sha256:abff41bc31f42860a196a6dac404b36e464bd28b57b21cd9d525c965e4b64729"},
+    {file = "python_bitvavo_api-1.4.2-py3-none-any.whl", hash = "sha256:d8b008b37a96feb0745e4f94217e95ac81ba46f5b4a329e2b59b30b890533303"},
+    {file = "python_bitvavo_api-1.4.2.tar.gz", hash = "sha256:473b9ad82b2ff3f8f67fd8a4462d8bf95c69f4513c755806c5b3486bc58eec9c"},
 ]
 
 [[package]]

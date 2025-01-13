@@ -17,7 +17,7 @@ The moving average is a widely used indicator in technical analysis that helps s
 - Three different moving averages: 20, 50, 100
 - All three moving averages should go in the same direction to confirm the trend
 
-## Bolleger Bands - Volatility
+## Bollinger Bands - Volatility
 
 Bollinger Bands are a type of statistical chart characterizing the prices and volatility over time of a financial instrument or commodity. The bands are plotted two standard deviations above and below a simple moving average.
 

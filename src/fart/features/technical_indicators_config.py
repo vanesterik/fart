@@ -58,12 +58,14 @@ class RSIConfig(BaseModel):
     - period (int): Time period for the RSI
     - overbought (int): Overbought level for the RSI
     - oversold (int): Oversold level for the RSI
+    - margin (int): Margin between overbought and oversold levels
 
     """
 
     period: int = 14
     overbought: int = 70
     oversold: int = 30
+    margin: int = 10
 
 
 class TechnicalIndicatorsConfig(BaseModel):

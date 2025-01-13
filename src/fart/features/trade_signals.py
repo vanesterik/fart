@@ -61,51 +61,108 @@ class TradeSignals:
         # Initialize indicator configuration
         config = TechnicalIndicatorsConfig()
 
+        # Apply rules for generating trade signals
+        self._df = self.df.with_columns(
+            [
+                # Bollinger Bands
+                # Lower Bounce
+                pl.when(
+                    (pl.col(fn.CLOSE) < pl.col(fn.BBANDS_LOWER))
+                    & (pl.col(fn.CLOSE).shift(1) >= pl.col(fn.BBANDS_LOWER).shift(1))
+                )
+                .then(pl.lit(1))
+                .otherwise(pl.lit(0))
+                .alias(fn.BBANDS_LOWER_BOUNCE),
+                #
+                # Upper Bounce
+                pl.when(
+                    (pl.col(fn.CLOSE) > pl.col(fn.BBANDS_UPPER))
+                    & (pl.col(fn.CLOSE).shift(1) <= pl.col(fn.BBANDS_UPPER).shift(1))
+                )
+                .then(pl.lit(1))
+                .otherwise(pl.lit(0))
+                .alias(fn.BBANDS_UPPER_BOUNCE),
+                #
+                # Exponential Moving Average
+                # Golden Cross
+                pl.when(
+                    (pl.col(fn.EMA_FAST) > pl.col(fn.EMA_SLOW))
+                    & (pl.col(fn.EMA_FAST).shift(1) <= pl.col(fn.EMA_SLOW).shift(1))
+                )
+                .then(pl.lit(1))
+                .otherwise(pl.lit(0))
+                .alias(fn.EMA_GOLDEN_CROSS),
+                #
+                # Death Cross
+                pl.when(
+                    (pl.col(fn.EMA_FAST) < pl.col(fn.EMA_SLOW))
+                    & (pl.col(fn.EMA_FAST).shift(1) >= pl.col(fn.EMA_SLOW).shift(1))
+                )
+                .then(pl.lit(1))
+                .otherwise(pl.lit(0))
+                .alias(fn.EMA_DEATH_CROSS),
+                #
+                # Moving Average Convergence Divergence
+                # Bullish Cross
+                pl.when(
+                    (pl.col(fn.MACD) > pl.col(fn.MACD_SIGNAL))
+                    & (pl.col(fn.MACD).shift(1) <= pl.col(fn.MACD_SIGNAL).shift(1))
+                )
+                .then(pl.lit(1))
+                .otherwise(pl.lit(0))
+                .alias(fn.MACD_BULLISH_CROSS),
+                #
+                # Bearish Cross
+                pl.when(
+                    (pl.col(fn.MACD) < pl.col(fn.MACD_SIGNAL))
+                    & (pl.col(fn.MACD).shift(1) >= pl.col(fn.MACD_SIGNAL).shift(1))
+                )
+                .then(pl.lit(1))
+                .otherwise(pl.lit(0))
+                .alias(fn.MACD_BEARISH_CROSS),
+                #
+                # Relative Strength Index
+                # Oversold
+                pl.when(
+                    (pl.col(fn.RSI) <= config.rsi.oversold)
+                    & (
+                        pl.col(fn.RSI).shift(1)
+                        >= config.rsi.oversold + config.rsi.margin
+                    )
+                )
+                .then(pl.lit(1))
+                .otherwise(pl.lit(0))
+                .alias(fn.RSI_OVERSOLD),
+                #
+                # Overbought
+                pl.when(
+                    (pl.col(fn.RSI) >= config.rsi.overbought)
+                    & (
+                        pl.col(fn.RSI).shift(1)
+                        <= config.rsi.overbought - config.rsi.margin
+                    )
+                )
+                .then(pl.lit(1))
+                .otherwise(pl.lit(0))
+                .alias(fn.RSI_OVERBOUGHT),
+            ]
+        )
+
         # Apply technical indicators based on specific conditions
         self._df = self._df.with_columns(
             [
                 pl.when(
-                    (
-                        (pl.col(fn.EMA_FAST) > pl.col(fn.EMA_SLOW))
-                        & (pl.col(fn.EMA_FAST).shift(1) <= pl.col(fn.EMA_SLOW).shift(1))
-                    )
-                    | (
-                        (pl.col(fn.CLOSE) < pl.col(fn.BBANDS_LOWER))
-                        & (
-                            pl.col(fn.CLOSE).shift(1)
-                            >= pl.col(fn.BBANDS_LOWER).shift(1)
-                        )
-                    )
-                    | (
-                        (pl.col(fn.MACD) > pl.col(fn.MACD_SIGNAL))
-                        & (pl.col(fn.MACD).shift(1) <= pl.col(fn.MACD_SIGNAL).shift(1))
-                    )
-                    | (
-                        (pl.col(fn.RSI) <= config.rsi.oversold)
-                        & (pl.col(fn.RSI).shift(1) >= config.rsi.oversold + 10)
-                    )
+                    (pl.col(fn.EMA_GOLDEN_CROSS) == 1)
+                    | (pl.col(fn.BBANDS_LOWER_BOUNCE) == 1)
+                    | (pl.col(fn.MACD_BULLISH_CROSS) == 1)
+                    | (pl.col(fn.RSI_OVERSOLD) == 1)
                 )
                 .then(pl.lit(cl.BUY))
                 .when(
-                    (
-                        (pl.col(fn.EMA_FAST) < pl.col(fn.EMA_SLOW))
-                        & (pl.col(fn.EMA_FAST).shift(1) >= pl.col(fn.EMA_SLOW).shift(1))
-                    )
-                    | (
-                        (pl.col(fn.CLOSE) > pl.col(fn.BBANDS_UPPER))
-                        & (
-                            pl.col(fn.CLOSE).shift(1)
-                            <= pl.col(fn.BBANDS_UPPER).shift(1)
-                        )
-                    )
-                    | (
-                        (pl.col(fn.MACD) < pl.col(fn.MACD_SIGNAL))
-                        & (pl.col(fn.MACD).shift(1) >= pl.col(fn.MACD_SIGNAL).shift(1))
-                    )
-                    | (
-                        (pl.col(fn.RSI) >= config.rsi.overbought)
-                        & (pl.col(fn.RSI).shift(1) <= config.rsi.overbought - 10)
-                    )
+                    (pl.col(fn.EMA_DEATH_CROSS) == 1)
+                    | (pl.col(fn.BBANDS_UPPER_BOUNCE) == 1)
+                    | (pl.col(fn.MACD_BEARISH_CROSS) == 1)
+                    | (pl.col(fn.RSI_OVERBOUGHT) == 1)
                 )
                 .then(pl.lit(cl.SELL))
                 .otherwise(pl.lit(cl.HOLD))

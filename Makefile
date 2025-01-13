@@ -59,7 +59,7 @@ run:
 
 ## Retrieve data from source
 data:
-	pdm run ${PROJECT_DIR}/src/${PROJECT_NAME}/data/main.py
+	pdm run ${PROJECT_DIR}/src/${PROJECT_NAME}/data/make_dataset.py
 
 ## Generate visualization
 visual:

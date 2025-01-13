@@ -1,6 +1,5 @@
 import csv
 from datetime import datetime
-from math import e
 from pathlib import Path
 from time import time
 from typing import List, Optional, Tuple
@@ -15,21 +14,32 @@ from fart.constants import feature_names as fn
 CandleData = Tuple[int, float, float, float, float, float]
 
 
-class BitvavoData:
-    def __init__(self, client: Bitvavo, output_dir: str = "data") -> None:
+class DataRetriever:
+    def __init__(
+        self,
+        api_key: Optional[str],
+        api_secret: Optional[str],
+        output_dir: str = "data",
+    ) -> None:
         """
         Initialize the BitvavoData class containing methods to retrieve candle
         data from the Bitvavo API.
 
         Parameters
         ----------
-        - client (Bitvavo): Bitvavo client to interact with the Bitvavo API
+        - api_key (str): API key for the Bitvavo API
+        - api_secret (str): API secret for the Bitvavo API
         - output_dir (str): Output directory to save the data to
 
         """
 
-        # Assign Bitvavo client
-        self._client = client
+        # Create a Bitvavo client
+        self._client = Bitvavo(
+            {
+                "APIKEY": api_key,
+                "APISECRET": api_secret,
+            }
+        )
 
         # Define output directory
         self._output_dir = Path(output_dir)

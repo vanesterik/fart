@@ -1,9 +1,10 @@
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import mplfinance as mpf
 import numpy as np
 import pandas as pd
 
+from fart.constants import classes as cl
 from fart.constants import colors as co
 from fart.constants import feature_names as fn
 from fart.features.technical_indicators_config import TechnicalIndicatorsConfig
@@ -226,7 +227,7 @@ class CandlestickChart:
             ),
             mpf.make_addplot(
                 df[fn.MACD_HISTOGRAM],
-                color=self._generate_macd_colors(df),
+                color=self._create_macd_colors(df),
                 ylabel=fn.MACD,
                 panel=1,
                 type="bar",
@@ -300,11 +301,11 @@ class CandlestickChart:
         """
 
         buy_signals = [
-            (df[fn.CLOSE].iloc[i] if df[fn.TRADE_SIGNAL].iloc[i] == 1 else np.NaN)
+            (df[fn.CLOSE].iloc[i] if df[fn.TRADE_SIGNAL].iloc[i] == cl.BUY else np.NaN)
             for i in range(len(df))
         ]
         sell_signals = [
-            (df[fn.CLOSE].iloc[i] if df[fn.TRADE_SIGNAL].iloc[i] == -1 else np.NaN)
+            (df[fn.CLOSE].iloc[i] if df[fn.TRADE_SIGNAL].iloc[i] == cl.SELL else np.NaN)
             for i in range(len(df))
         ]
 
@@ -336,7 +337,7 @@ class CandlestickChart:
 
         return indicators
 
-    def _generate_macd_colors(self, df: pd.DataFrame) -> List[str]:
+    def _create_macd_colors(self, df: pd.DataFrame) -> List[str]:
         """
         Generate colors for the MACD histogram plot.
 

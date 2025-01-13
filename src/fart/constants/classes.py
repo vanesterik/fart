@@ -1,3 +1,3 @@
 BUY = 1
 HOLD = 0
-SELL = -1
+SELL = 2

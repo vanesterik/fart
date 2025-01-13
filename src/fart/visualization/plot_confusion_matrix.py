@@ -12,7 +12,7 @@ from fart.constants import classes as cl
 def plot_confusion_matrix(
     y_true: List[int],
     y_pred: List[int],
-    labels: List[int] = [cl.SELL, cl.HOLD, cl.BUY],
+    labels: List[int] = [cl.HOLD, cl.BUY, cl.SELL],
 ) -> None:
     """
     Plot confusion matrix.
@@ -21,8 +21,8 @@ def plot_confusion_matrix(
     ----------
     - y_true (List[int]): True labels.
     - y_pred (List[int]): Predicted labels.
-    - labels (List[int], optional): List of labels. Defaults to [cl.SELL,
-      cl.HOLD, cl.BUY].
+    - labels (List[int], optional): List of labels. Defaults to [cl.HOLD,
+      cl.BUY, cl.SELL].
 
     """
 

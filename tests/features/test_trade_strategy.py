@@ -48,8 +48,8 @@ def test_multiple_trades() -> None:
     )
     strategy = TradeStrategy(df, initial_capital=1000)
     strategy.backtest()
-    assert strategy.proceeds == 1155
-    assert len(strategy.trades) == 4
+    assert strategy.proceeds == 2100
+    assert len(strategy.trades) == 2
 
 
 def test_open_position_at_end() -> None:

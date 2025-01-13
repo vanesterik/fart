@@ -2,9 +2,8 @@ from os import getenv
 
 import click
 from dotenv import find_dotenv, load_dotenv
-from python_bitvavo_api.bitvavo import Bitvavo
 
-from fart.data.bitvavo_data import BitvavoData
+from fart.data.data_retriever import DataRetriever
 
 
 @click.command()
@@ -13,8 +12,7 @@ from fart.data.bitvavo_data import BitvavoData
 def main(market: str, interval: str) -> None:
 
     # Retrieve and save candle data from Bitvavo API
-    bitvavo_data = BitvavoData(client)
-    bitvavo_data.retrieve(market, interval)
+    data_retriever.retrieve(market, interval)
 
 
 if __name__ == "__main__":
@@ -22,12 +20,10 @@ if __name__ == "__main__":
     # Find and load .env files automagically
     load_dotenv(find_dotenv())
 
-    # Create a Bitvavo client
-    client = Bitvavo(
-        {
-            "APIKEY": getenv("BITVAVO_API_KEY"),
-            "APISECRET": getenv("BITVAVO_API_SECRET"),
-        }
+    # Create data retriever instance
+    data_retriever = DataRetriever(
+        getenv("BITVAVO_API_KEY"),
+        getenv("BITVAVO_API_SECRET"),
     )
 
     # Run main function
