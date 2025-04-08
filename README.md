@@ -2,20 +2,21 @@
 
 # FART
 
-**FART** stands for **F**inancial **A**nalysis & **R**eal-time **T**rading. It is a project to build a trading agent that can trade cryptocurrency in real-time. The agent will be trained on historical data and will be able to make predictions in terms of buy/sell signals. The agent will then use these predictions to make trades in real-time.
+**FART** is a cryptocurrency trade platform that uses machine learning to make real-time trading decisions. It stands for **F**inancial **A**nalysis & **R**eal-time **T**rading. The trade platform is trained on historical data to generate buy/sell signals, which it then uses to execute trades in real-time.
 
 ## Motivation
 
-The motivation for this project is to learn more about machine learning and to build a trading agent that can possibly generate revenue.
+The motivation for this project is twofold:
+1. To deepen understanding of machine learning techniques in financial analysis.
+2. To develop a potentially revenue-generating trade platform for cryptocurrency markets.
 
 ## Name
 
-The name **FART** is a abbreviation play on the title "Financial Analysis and Real-time Trading". It is also the name of a gaseous being who appeared in the episode [Mortynight Run
-](https://www.imdb.com/title/tt4832254/) of the Rick and Morty series. There is a bit of musical part in the episode, which I really enjoyed. The name **FART** is a homage to that episode.
+The name **FART** is an abbreviation play on the title "Financial Analysis and Real-time Trading". It is also the name of a gaseous being who appeared in the episode [Mortynight Run](https://www.imdb.com/title/tt4832254/) of the Rick and Morty series. There is a bit of musical part in the episode, which I really enjoyed. The name **FART** is a homage to that episode.
 
 ## Installation
 
-To install the project, you can use the following commands:
+Use the following command to install the project:
 
 ```bash
 pdm install
@@ -23,34 +24,39 @@ pdm install
 
 ## Usage
 
-To use the project, you can use the following commands:
+Use the following command to run the project:
 
 ```bash
-make run # to run the trading agent
+make run # to run the trade platform
 ```
 
-The `run` command will start the initialization of the trading agent. The trading agent is based upon a loop specified by the interval passed as an argument to the `run` command (default is 30m). The agent will trigger a function each loop iteration to check the latest candle data.  
-With the candle data the agent will make a prediction and place an order based upon the prediction. The agent will then wait for the next interval to repeat the process.
+The run command will start the initialization of the trade platform. The trade platform operates based on the following principles:
 
-The agent can be terminated by pressing the <kbd>Escape</kbd> key. The agent can also be paused and resumed by toggling the <kbd>space</kbd> key.
+- It runs in a loop specified by the interval passed as an argument (default is 30m).
+- Each iteration, it checks the latest candle data.
+- Using this data, it makes a prediction and places an order accordingly.
+- It then waits for the next interval to repeat the process.
 
-By pressing the <kbd>Tab</kbd> or <kbd>Enter</kbd> key, the agent will forcibly place an order to switch position regardless of an potential prediction.
+Key controls:
+
+- <kbd>Escape</kbd>: Terminate the trade platform
+- <kbd>Space</kbd>: Pause/Resume the trade platform
+- <kbd>Tab</kbd> or <kbd>Enter</kbd>: Forcibly place an order to switch current position
 
 ![FART](./references/dashboard.png)
 
-Additional commands are:
+Additional commands:
 
 ```bash
 make data # to make the dataset
 make train # to train the model
 ```
 
-These commands are used internally by the `run` command and are not necessary to run executed separately. But are listed in order to show the full extent of the project.
-
+These commands are used internally by the run command and are not necessary to be executed separately. They are listed for reference purposes.
 
 ## State Machine Diagram
 
-In order to get a better understanding of the trading agent, a state machine diagram is provided. The state machine diagram shows the different states the trading agent can be in and the transitions between these states:
+In order to get a better understanding of how the trade platform runs, a state machine diagram is provided. The state machine diagram shows the different states the trade platform can be in and the transitions between these states:
 
 ```mermaid
 ---
@@ -60,27 +66,28 @@ config:
 stateDiagram
    state initialization_condition <<choice>>
    state trade_signal_condition <<choice>>
-   [*] --> initialization_condition: EVALUATE_INITIALIZATION
+   [*] --> initial
+   initial --> initialization_condition: EVALUATE_PARAMETERS
    initialization_condition --> collecting_data: INITIALIZE
-   initialization_condition --> idle: SKIP_INITIALIZATION
+   initialization_condition --> listening: SKIP_INITIALIZATION
    collecting_data --> preprocessing_data
    preprocessing_data --> training_model
-   training_model --> idle
-   idle --> predicting_trade_signal: RECEIVE_CANDLE_DATA
+   training_model --> listening
+   listening --> predicting_trade_signal: RECEIVE_CANDLE_DATA
    predicting_trade_signal --> trade_signal_condition: EVALUATE_PREDICTION
    trade_signal_condition --> placing_order: SWITCH_POSITION
-   trade_signal_condition --> idle: MAINTAIN_POSITION
-   idle --> placing_order: FORCE_POSITION_SWITCH
-   idle --> pausing: PAUSE_PROGRAM
-   pausing --> idle: RESUME_PROGRAM
-   placing_order --> idle
-   idle --> terminating: TERMINATE_PROGRAM
+   trade_signal_condition --> listening: MAINTAIN_POSITION
+   listening --> placing_order: FORCE_POSITION_SWITCH
+   listening --> pausing: PAUSE_PROGRAM
+   pausing --> listening: RESUME_PROGRAM
+   placing_order --> listening
+   listening --> terminating: TERMINATE_PROGRAM
    terminating --> [*]
 ```
 
 ## Project Structure
 
-The project based on the [cookiecutter data science project template](https://drivendata.github.io/cookiecutter-data-science/). #cookiecutterdatascience
+The project is based on the [cookiecutter data science project template](https://drivendata.github.io/cookiecutter-data-science/).
 
 ```
     ├── LICENSE
@@ -120,8 +127,6 @@ The project based on the [cookiecutter data science project template](https://dr
         └── visualization  <- Scripts to create exploratory and results oriented visualizations.
             └── visualize.py
 ```
-
-
 
 ## License
 

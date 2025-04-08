@@ -1,9 +1,23 @@
 # External imports
 import polars as pl
-from talib import BBANDS, EMA, MACD, RSI
+from talib import BBANDS as calculate_bbands
+from talib import EMA as calculate_ema
+from talib import MACD as calculate_macd
+from talib import RSI as calculate_rsi
 
 # Internal imports
-from fart.constants import feature_names as fn
+from fart.common.constants import (
+    BBANDS_LOWER,
+    BBANDS_MIDDLE,
+    BBANDS_UPPER,
+    CLOSE,
+    EMA_FAST,
+    EMA_SLOW,
+    MACD,
+    MACD_HISTOGRAM,
+    MACD_SIGNAL,
+    RSI,
+)
 from fart.features.technical_indicators_config import TechnicalIndicatorsConfig
 
 
@@ -51,39 +65,39 @@ def calculate_technical_indicators(df: pl.DataFrame) -> pl.DataFrame:
     config = TechnicalIndicatorsConfig()
 
     # Bollinger Bands
-    bbands_upper, bbands_middle, bbands_lower = BBANDS(
-        df[fn.CLOSE],
+    bbands_upper, bbands_middle, bbands_lower = calculate_bbands(
+        df[CLOSE],
         timeperiod=config.bbands.period,
         nbdevdn=config.bbands.standard_deviation,
         nbdevup=config.bbands.standard_deviation,
     )
 
     # Exponential Moving Averages
-    ema_fast = EMA(df[fn.CLOSE], timeperiod=config.ema.fast_period)
-    ema_slow = EMA(df[fn.CLOSE], timeperiod=config.ema.slow_period)
+    ema_fast = calculate_ema(df[CLOSE], timeperiod=config.ema.fast_period)
+    ema_slow = calculate_ema(df[CLOSE], timeperiod=config.ema.slow_period)
 
     # Moving Average Convergence Divergence
-    macd, macd_signal, macd_histogram = MACD(
-        df[fn.CLOSE],
+    macd, macd_signal, macd_histogram = calculate_macd(
+        df[CLOSE],
         fastperiod=config.macd.fast_period,
         slowperiod=config.macd.slow_period,
         signalperiod=config.macd.signal_period,
     )
 
     # Relative Strength Index
-    rsi = RSI(df[fn.CLOSE], timeperiod=config.rsi.period)
+    rsi = calculate_rsi(df[CLOSE], timeperiod=config.rsi.period)
 
     # Return DataFrame with calculated indicators
     return df.with_columns(
         [
-            pl.Series(fn.BBANDS_UPPER, bbands_upper),
-            pl.Series(fn.BBANDS_MIDDLE, bbands_middle),
-            pl.Series(fn.BBANDS_LOWER, bbands_lower),
-            pl.Series(fn.EMA_FAST, ema_fast),
-            pl.Series(fn.EMA_SLOW, ema_slow),
-            pl.Series(fn.MACD, macd),
-            pl.Series(fn.MACD_SIGNAL, macd_signal),
-            pl.Series(fn.MACD_HISTOGRAM, macd_histogram),
-            pl.Series(fn.RSI, rsi),
+            pl.Series(BBANDS_UPPER, bbands_upper),
+            pl.Series(BBANDS_MIDDLE, bbands_middle),
+            pl.Series(BBANDS_LOWER, bbands_lower),
+            pl.Series(EMA_FAST, ema_fast),
+            pl.Series(EMA_SLOW, ema_slow),
+            pl.Series(MACD, macd),
+            pl.Series(MACD_SIGNAL, macd_signal),
+            pl.Series(MACD_HISTOGRAM, macd_histogram),
+            pl.Series(RSI, rsi),
         ]
     )

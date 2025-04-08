@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:1a325d0ce5bc4d30813a61b51aa549fdf5d71698c9de94d5f0442a0f2a8ec8c9"
+content_hash = "sha256:ce02be3238cf6954c40d2c4b4936cb5f619f19227089a2b93f2142b1345698ff"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -2439,14 +2439,15 @@ files = [
 
 [[package]]
 name = "ta-lib"
-version = "0.4.31"
-summary = "Python wrapper for TA-Lib"
+version = "0.6.1"
+summary = ""
 groups = ["default"]
 dependencies = [
     "numpy",
+    "setuptools",
 ]
 files = [
-    {file = "TA-Lib-0.4.31.tar.gz", hash = "sha256:f2a5002ff2359c370316066f28d870d8bbbaf38bb5ada23167675fe231874c93"},
+    {file = "ta_lib-0.6.1.tar.gz", hash = "sha256:5629c82ea201375597e44713c169e1d62f18bb2309266865a941eeae76777a18"},
 ]
 
 [[package]]

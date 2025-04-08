@@ -4,13 +4,13 @@ from typing import Any, Dict
 import click
 from dotenv import find_dotenv, load_dotenv
 
+from fart.core.dashboard import Dashboard
+from fart.core.exchange import CandlesSubscription, Exchange
 from fart.utils.converters import (
     convert_balance_data,
     convert_currency_data,
     convert_profit_loss_data,
 )
-from fart.utils.dashboard import Dashboard
-from fart.utils.trader import CandlesSubscription, Trader
 
 
 @click.command()
@@ -19,8 +19,8 @@ from fart.utils.trader import CandlesSubscription, Trader
 def main(market: str, interval: str) -> None:
 
     # Set config of trader
-    trader.market = market
-    trader.interval = interval
+    exchange.market = market
+    exchange.interval = interval
 
     # Set config of dashboard
     dashboard.market = market
@@ -33,13 +33,13 @@ def main(market: str, interval: str) -> None:
             "event": "candle",
             "market": market,
             "interval": interval,
-            "candle": [trader.last_candle],
+            "candle": [exchange.last_candle],
         }
     )
 
     # Initiate trading service
-    trader.initiate(update_dashboard)
-    trader.wait_and_close()
+    exchange.initiate(update_dashboard)
+    exchange.wait_and_close()
 
 
 def update_dashboard(candle_data: Dict[str, Any]) -> None:
@@ -48,9 +48,9 @@ def update_dashboard(candle_data: Dict[str, Any]) -> None:
     candle = CandlesSubscription(**candle_data).candle[0]
 
     # Update trader data
-    dashboard.balance = convert_balance_data(trader.balance)
+    dashboard.balance = convert_balance_data(exchange.balance)
     dashboard.currency = convert_currency_data(candle)
-    dashboard.profit_loss = convert_profit_loss_data(trader.trades)
+    dashboard.profit_loss = convert_profit_loss_data(exchange.trades)
 
     # Render new dashboard screen
     dashboard.render()
@@ -61,13 +61,13 @@ if __name__ == "__main__":
     # find and load .env files automagically
     load_dotenv(find_dotenv())
 
-    # Create trader instance to initiate trading service
-    trader = Trader(
+    # Create exchange instance to initiate trade platform
+    exchange = Exchange(
         getenv("BITVAVO_API_KEY"),
         getenv("BITVAVO_API_SECRET"),
     )
 
-    # Create dashboard instance to display trading status
+    # Create dashboard instance to display trade position
     dashboard = Dashboard()
 
     main()

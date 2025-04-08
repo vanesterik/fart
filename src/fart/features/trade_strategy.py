@@ -2,8 +2,7 @@ from typing import Any, Dict, List, Tuple
 
 import polars as pl
 
-from fart.constants import classes as cl
-from fart.constants import feature_names as fn
+from fart.common.constants import BUY_CLASS, CLOSE, SELL_CLASS, TIMESTAMP, TRADE_SIGNAL
 
 
 class TradeStrategy:
@@ -97,10 +96,10 @@ class TradeStrategy:
         - row (Dict[str, Any]]]): Row in the DataFrame
 
         """
-        if row[fn.TRADE_SIGNAL] == cl.BUY and not self._is_open_position:
+        if row[TRADE_SIGNAL] == BUY_CLASS and not self._is_open_position:
             self._open_position(row)
 
-        elif row[fn.TRADE_SIGNAL] == cl.SELL and self._is_open_position:
+        elif row[TRADE_SIGNAL] == SELL_CLASS and self._is_open_position:
             self._close_position(row)
 
     def _open_position(self, row: Dict[str, Any]) -> None:
@@ -114,14 +113,14 @@ class TradeStrategy:
 
         """
         self._is_open_position = True
-        entry_price = float(row[fn.CLOSE])
+        entry_price = float(row[CLOSE])
         position_size = self._proceeds * (1 - self._transaction_cost)
         self._shares = position_size / entry_price
         self._proceeds -= position_size
         self._trades.append(
             (
-                row[fn.TIMESTAMP],
-                row[fn.TRADE_SIGNAL],
+                row[TIMESTAMP],
+                row[TRADE_SIGNAL],
                 entry_price,
                 self._shares,
                 self._proceeds,
@@ -140,13 +139,13 @@ class TradeStrategy:
         """
 
         self._is_open_position = False
-        exit_price = float(row[fn.CLOSE])
+        exit_price = float(row[CLOSE])
         position_value = self._shares * exit_price * (1 - self._transaction_cost)
         self._proceeds += position_value
         self._trades.append(
             (
-                row[fn.TIMESTAMP],
-                row[fn.TRADE_SIGNAL],
+                row[TIMESTAMP],
+                row[TRADE_SIGNAL],
                 exit_price,
                 self._shares,
                 self._proceeds,

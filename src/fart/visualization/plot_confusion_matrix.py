@@ -6,13 +6,13 @@ import pandas as pd
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 
-from fart.constants import classes as cl
+from fart.common import constants as cl
 
 
 def plot_confusion_matrix(
     y_true: List[int],
     y_pred: List[int],
-    labels: List[int] = [cl.HOLD, cl.BUY, cl.SELL],
+    labels: List[int] = [cl.HOLD_CLASS, cl.BUY_CLASS, cl.SELL_CLASS],
 ) -> None:
     """
     Plot confusion matrix.

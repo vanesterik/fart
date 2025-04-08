@@ -3,8 +3,29 @@ from typing import List, Tuple
 import polars as pl
 
 # Internal imports
-from fart.constants import classes as cl
-from fart.constants import feature_names as fn
+from fart.common.constants import (
+    BBANDS_LOWER,
+    BBANDS_LOWER_BOUNCE,
+    BBANDS_UPPER,
+    BBANDS_UPPER_BOUNCE,
+    BUY_CLASS,
+    CLOSE,
+    EMA_DEATH_CROSS,
+    EMA_FAST,
+    EMA_GOLDEN_CROSS,
+    EMA_SLOW,
+    HOLD_CLASS,
+    MACD,
+    MACD_BEARISH_CROSS,
+    MACD_BULLISH_CROSS,
+    MACD_SIGNAL,
+    RSI,
+    RSI_OVERBOUGHT,
+    RSI_OVERSOLD,
+    SELL_CLASS,
+    TIMESTAMP,
+    TRADE_SIGNAL,
+)
 from fart.features.technical_indicators_config import TechnicalIndicatorsConfig
 
 
@@ -67,84 +88,81 @@ class TradeSignals:
                 # Bollinger Bands
                 # Lower Bounce
                 pl.when(
-                    (pl.col(fn.CLOSE) < pl.col(fn.BBANDS_LOWER))
-                    & (pl.col(fn.CLOSE).shift(1) >= pl.col(fn.BBANDS_LOWER).shift(1))
+                    (pl.col(CLOSE) < pl.col(BBANDS_LOWER))
+                    & (pl.col(CLOSE).shift(1) >= pl.col(BBANDS_LOWER).shift(1))
                 )
                 .then(pl.lit(1))
                 .otherwise(pl.lit(0))
-                .alias(fn.BBANDS_LOWER_BOUNCE),
+                .alias(BBANDS_LOWER_BOUNCE),
                 #
                 # Upper Bounce
                 pl.when(
-                    (pl.col(fn.CLOSE) > pl.col(fn.BBANDS_UPPER))
-                    & (pl.col(fn.CLOSE).shift(1) <= pl.col(fn.BBANDS_UPPER).shift(1))
+                    (pl.col(CLOSE) > pl.col(BBANDS_UPPER))
+                    & (pl.col(CLOSE).shift(1) <= pl.col(BBANDS_UPPER).shift(1))
                 )
                 .then(pl.lit(1))
                 .otherwise(pl.lit(0))
-                .alias(fn.BBANDS_UPPER_BOUNCE),
+                .alias(BBANDS_UPPER_BOUNCE),
                 #
                 # Exponential Moving Average
                 # Golden Cross
                 pl.when(
-                    (pl.col(fn.EMA_FAST) > pl.col(fn.EMA_SLOW))
-                    & (pl.col(fn.EMA_FAST).shift(1) <= pl.col(fn.EMA_SLOW).shift(1))
+                    (pl.col(EMA_FAST) > pl.col(EMA_SLOW))
+                    & (pl.col(EMA_FAST).shift(1) <= pl.col(EMA_SLOW).shift(1))
                 )
                 .then(pl.lit(1))
                 .otherwise(pl.lit(0))
-                .alias(fn.EMA_GOLDEN_CROSS),
+                .alias(EMA_GOLDEN_CROSS),
                 #
                 # Death Cross
                 pl.when(
-                    (pl.col(fn.EMA_FAST) < pl.col(fn.EMA_SLOW))
-                    & (pl.col(fn.EMA_FAST).shift(1) >= pl.col(fn.EMA_SLOW).shift(1))
+                    (pl.col(EMA_FAST) < pl.col(EMA_SLOW))
+                    & (pl.col(EMA_FAST).shift(1) >= pl.col(EMA_SLOW).shift(1))
                 )
                 .then(pl.lit(1))
                 .otherwise(pl.lit(0))
-                .alias(fn.EMA_DEATH_CROSS),
+                .alias(EMA_DEATH_CROSS),
                 #
                 # Moving Average Convergence Divergence
                 # Bullish Cross
                 pl.when(
-                    (pl.col(fn.MACD) > pl.col(fn.MACD_SIGNAL))
-                    & (pl.col(fn.MACD).shift(1) <= pl.col(fn.MACD_SIGNAL).shift(1))
+                    (pl.col(MACD) > pl.col(MACD_SIGNAL))
+                    & (pl.col(MACD).shift(1) <= pl.col(MACD_SIGNAL).shift(1))
                 )
                 .then(pl.lit(1))
                 .otherwise(pl.lit(0))
-                .alias(fn.MACD_BULLISH_CROSS),
+                .alias(MACD_BULLISH_CROSS),
                 #
                 # Bearish Cross
                 pl.when(
-                    (pl.col(fn.MACD) < pl.col(fn.MACD_SIGNAL))
-                    & (pl.col(fn.MACD).shift(1) >= pl.col(fn.MACD_SIGNAL).shift(1))
+                    (pl.col(MACD) < pl.col(MACD_SIGNAL))
+                    & (pl.col(MACD).shift(1) >= pl.col(MACD_SIGNAL).shift(1))
                 )
                 .then(pl.lit(1))
                 .otherwise(pl.lit(0))
-                .alias(fn.MACD_BEARISH_CROSS),
+                .alias(MACD_BEARISH_CROSS),
                 #
                 # Relative Strength Index
                 # Oversold
                 pl.when(
-                    (pl.col(fn.RSI) <= config.rsi.oversold)
-                    & (
-                        pl.col(fn.RSI).shift(1)
-                        >= config.rsi.oversold + config.rsi.margin
-                    )
+                    (pl.col(RSI) <= config.rsi.oversold)
+                    & (pl.col(RSI).shift(1) >= config.rsi.oversold + config.rsi.margin)
                 )
                 .then(pl.lit(1))
                 .otherwise(pl.lit(0))
-                .alias(fn.RSI_OVERSOLD),
+                .alias(RSI_OVERSOLD),
                 #
                 # Overbought
                 pl.when(
-                    (pl.col(fn.RSI) >= config.rsi.overbought)
+                    (pl.col(RSI) >= config.rsi.overbought)
                     & (
-                        pl.col(fn.RSI).shift(1)
+                        pl.col(RSI).shift(1)
                         <= config.rsi.overbought - config.rsi.margin
                     )
                 )
                 .then(pl.lit(1))
                 .otherwise(pl.lit(0))
-                .alias(fn.RSI_OVERBOUGHT),
+                .alias(RSI_OVERBOUGHT),
             ]
         )
 
@@ -152,21 +170,21 @@ class TradeSignals:
         self._df = self._df.with_columns(
             [
                 pl.when(
-                    (pl.col(fn.EMA_GOLDEN_CROSS) == 1)
-                    | (pl.col(fn.BBANDS_LOWER_BOUNCE) == 1)
-                    | (pl.col(fn.MACD_BULLISH_CROSS) == 1)
-                    | (pl.col(fn.RSI_OVERSOLD) == 1)
+                    (pl.col(EMA_GOLDEN_CROSS) == 1)
+                    | (pl.col(BBANDS_LOWER_BOUNCE) == 1)
+                    | (pl.col(MACD_BULLISH_CROSS) == 1)
+                    | (pl.col(RSI_OVERSOLD) == 1)
                 )
-                .then(pl.lit(cl.BUY))
+                .then(pl.lit(BUY_CLASS))
                 .when(
-                    (pl.col(fn.EMA_DEATH_CROSS) == 1)
-                    | (pl.col(fn.BBANDS_UPPER_BOUNCE) == 1)
-                    | (pl.col(fn.MACD_BEARISH_CROSS) == 1)
-                    | (pl.col(fn.RSI_OVERBOUGHT) == 1)
+                    (pl.col(EMA_DEATH_CROSS) == 1)
+                    | (pl.col(BBANDS_UPPER_BOUNCE) == 1)
+                    | (pl.col(MACD_BEARISH_CROSS) == 1)
+                    | (pl.col(RSI_OVERBOUGHT) == 1)
                 )
-                .then(pl.lit(cl.SELL))
-                .otherwise(pl.lit(cl.HOLD))
-                .alias(fn.TRADE_SIGNAL),
+                .then(pl.lit(SELL_CLASS))
+                .otherwise(pl.lit(HOLD_CLASS))
+                .alias(TRADE_SIGNAL),
             ]
         )
 
@@ -188,7 +206,7 @@ class TradeSignals:
 
             # Check if the optimized DataFrame is equal to the iteration
             # DataFrame. If so, break the loop
-            if optimized_df[fn.TRADE_SIGNAL].equals(iteration_df[fn.TRADE_SIGNAL]):
+            if optimized_df[TRADE_SIGNAL].equals(iteration_df[TRADE_SIGNAL]):
                 break
 
             iteration_df = optimized_df
@@ -198,7 +216,7 @@ class TradeSignals:
                 raise Exception("Optimization loop exceeded 100 iterations")
 
         # Update the original DataFrame with the optimized trade signals
-        self._df = self._df.with_columns([optimized_df[fn.TRADE_SIGNAL]])
+        self._df = self._df.with_columns([optimized_df[TRADE_SIGNAL]])
 
     def _filter_positive_trades(self, df: pl.DataFrame) -> pl.DataFrame:
         """
@@ -219,13 +237,13 @@ class TradeSignals:
 
         # Collect timestamps of negative trades
         for row in df.rows(named=True):
-            if row[fn.TRADE_SIGNAL] == cl.BUY and not self._is_open_position:
+            if row[TRADE_SIGNAL] == BUY_CLASS and not self._is_open_position:
                 self._is_open_position = True
-                self._entry = (row[fn.TIMESTAMP], float(row[fn.CLOSE]))
+                self._entry = (row[TIMESTAMP], float(row[CLOSE]))
 
-            elif row[fn.TRADE_SIGNAL] == cl.SELL and self._is_open_position:
+            elif row[TRADE_SIGNAL] == SELL_CLASS and self._is_open_position:
                 self._is_open_position = False
-                self._exit = (row[fn.TIMESTAMP], float(row[fn.CLOSE]))
+                self._exit = (row[TIMESTAMP], float(row[CLOSE]))
 
                 # Destruct entry/exit timestamps/prices for easy access
                 entry_timestamp, entry_price = self._entry
@@ -239,8 +257,8 @@ class TradeSignals:
                     self._positive_trades.extend([entry_timestamp, exit_timestamp])
 
         return df.with_columns(
-            pl.when(pl.col(fn.TIMESTAMP).is_in(pl.Series(self._positive_trades)))
-            .then(pl.col(fn.TRADE_SIGNAL))
-            .otherwise(cl.HOLD)
-            .alias(fn.TRADE_SIGNAL)
+            pl.when(pl.col(TIMESTAMP).is_in(pl.Series(self._positive_trades)))
+            .then(pl.col(TRADE_SIGNAL))
+            .otherwise(HOLD_CLASS)
+            .alias(TRADE_SIGNAL)
         )

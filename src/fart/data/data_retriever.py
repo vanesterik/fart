@@ -8,7 +8,7 @@ import polars as pl
 from loguru import logger
 from python_bitvavo_api.bitvavo import Bitvavo
 
-from fart.constants import feature_names as fn
+from fart.common.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
 
 # Define type alias for candle data
 CandleData = Tuple[int, float, float, float, float, float]
@@ -144,12 +144,12 @@ class DataRetriever:
 
                 data.append(
                     (
-                        int(row[fn.TIMESTAMP]),
-                        float(row[fn.OPEN]),
-                        float(row[fn.HIGH]),
-                        float(row[fn.LOW]),
-                        float(row[fn.CLOSE]),
-                        float(row[fn.VOLUME]),
+                        int(row[TIMESTAMP]),
+                        float(row[OPEN]),
+                        float(row[HIGH]),
+                        float(row[LOW]),
+                        float(row[CLOSE]),
+                        float(row[VOLUME]),
                     )
                 )
 
@@ -286,17 +286,17 @@ class DataRetriever:
             data,
             orient="row",
             schema=[
-                (fn.TIMESTAMP, pl.Int64()),
-                (fn.OPEN, pl.Float64()),
-                (fn.HIGH, pl.Float64()),
-                (fn.LOW, pl.Float64()),
-                (fn.CLOSE, pl.Float64()),
-                (fn.VOLUME, pl.Float64()),
+                (TIMESTAMP, pl.Int64()),
+                (OPEN, pl.Float64()),
+                (HIGH, pl.Float64()),
+                (LOW, pl.Float64()),
+                (CLOSE, pl.Float64()),
+                (VOLUME, pl.Float64()),
             ],
         )
 
         # Sort and deduplicate the DataFrame before saving it
-        df = df.sort(fn.TIMESTAMP).unique(subset=[fn.TIMESTAMP], keep="first")
+        df = df.sort(TIMESTAMP).unique(subset=[TIMESTAMP], keep="first")
 
         # Save the Polars DataFrame to the output path
         df.write_csv(output_path)

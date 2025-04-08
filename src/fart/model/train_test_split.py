@@ -4,7 +4,7 @@ import pandas as pd
 import polars as pl
 from sklearn.model_selection import train_test_split as base_train_test_split
 
-from fart.constants import feature_names as fn
+from fart.common.constants import TRADE_SIGNAL
 
 
 def train_test_split(
@@ -36,10 +36,10 @@ def train_test_split(
     pandas_df = df.to_pandas()
 
     # Filter predictor columns and reshape to 1D array
-    X = pandas_df.drop(columns=fn.TRADE_SIGNAL)
+    X = pandas_df.drop(columns=TRADE_SIGNAL)
 
     # Filter target column
-    y = pandas_df[fn.TRADE_SIGNAL]
+    y = pandas_df[TRADE_SIGNAL]
 
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = base_train_test_split(

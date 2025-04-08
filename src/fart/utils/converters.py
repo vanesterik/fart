@@ -1,8 +1,8 @@
 from datetime import datetime, time, timedelta
 from typing import List
 
-from fart.utils.dashboard import BalanceData, CurrencyData, ProfitLossData
-from fart.utils.trader import BalanceAsset, Candle, Trade
+from fart.core.dashboard import BalanceData, CurrencyData, ProfitLossData
+from fart.core.exchange import BalanceAsset, Candle, Trade
 
 
 def convert_balance_data(balance: List[BalanceAsset]) -> BalanceData:

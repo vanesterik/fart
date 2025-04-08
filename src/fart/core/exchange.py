@@ -42,14 +42,14 @@ class CandlesSubscription(BaseModel):
     candle: List[Candle]
 
 
-class Trader:
+class Exchange:
     """
-    Trader class to handle trading operations with Bitvavo API.
+    Exchange class to handle operations with Bitvavo API.
 
-    This class is a wrapper around the Bitvavo API to handle trading operations
-    with the Bitvavo exchange. It provides a simple interface to retrieve
-    balance data, candle data, price data, etc. It also allows to set the market
-    and interval for which the data should be retrieved.
+    This class is a wrapper around the Bitvavo API to handle operations with the
+    Bitvavo exchange. It provides a simple interface to retrieve balance data,
+    candle data, price data, etc. It also allows to set the market and interval
+    for which the data should be retrieved.
 
     The Bitvavo API is not typed properly, so this class provides a typed API to
     interact with the Bitvavo API.

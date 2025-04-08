@@ -2,7 +2,7 @@ import click
 import matplotlib.pyplot as plt
 import polars as pl
 
-from fart.constants import feature_names as fn
+from fart.common import feature_names as fn
 from fart.features.calculate_technical_indicators import calculate_technical_indicators
 from fart.features.parse_timestamp_to_datetime import parse_timestamp_to_datetime
 from fart.utils.get_last_modified_data_file import get_last_modified_data_file

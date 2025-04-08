@@ -9,8 +9,26 @@ from rich.panel import Panel as BasePanel
 from rich.table import Table as BaseTable
 from rich.text import Text
 
-from fart.constants import colors as co
-from fart.constants import labels as la
+from fart.common.constants import (
+    BALANCE,
+    CHANGE,
+    DOVE_GREY,
+    EUR,
+    GREEN,
+    HIGH,
+    LAST_UPDATE,
+    LOW,
+    NOT_AVAILABLE,
+    PRICE,
+    PROFIT_LOSS,
+    RED,
+    THIS_MONTH,
+    THIS_WEEK,
+    TODAY,
+    TOTAL,
+    VOLUME,
+    YEAR_TO_DATE,
+)
 
 BalanceData = Optional[
     List[
@@ -54,8 +72,8 @@ class Dashboard:
     """
 
     def __init__(self) -> None:
-        self._market: str = la.NOT_AVAILABLE
-        self._interval: str = la.NOT_AVAILABLE
+        self._market: str = NOT_AVAILABLE
+        self._interval: str = NOT_AVAILABLE
         self._balance: BalanceData = None
         self._currency: CurrencyData = None
         self._profit_loss: ProfitLossData = None
@@ -112,17 +130,17 @@ class Dashboard:
                     ),
                     Panel(
                         BalanceTable(self._balance),
-                        title=la.BALANCE,
+                        title=BALANCE,
                     ),
                     Panel(
                         ProfitLossTable(self._profit_loss),
-                        title=la.PROFIT_LOSS,
+                        title=PROFIT_LOSS,
                     ),
                 ],
             ),
             Text(
-                f"{la.LAST_UPDATE}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                style=co.DOVE_GREY,
+                f"{LAST_UPDATE}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                style=DOVE_GREY,
             ),
         )
 
@@ -157,7 +175,7 @@ class Panel(BasePanel):
         title: str,
     ) -> None:
         super().__init__(
-            border_style=co.DOVE_GREY,
+            border_style=DOVE_GREY,
             height=10,
             padding=(1, 1),
             renderable=renderable,
@@ -202,10 +220,10 @@ class DecimalText(Text):
             (
                 format_decimal(value, format="#.00000000" if currency else "#,##0.00")
                 if value is not None
-                else la.NOT_AVAILABLE
+                else NOT_AVAILABLE
             ),
             justify="right",
-            style=co.RED if value is not None and value < 0 else "",
+            style=RED if value is not None and value < 0 else "",
         )
 
 
@@ -224,13 +242,13 @@ class PercentText(Text):
             (
                 format_percent(value, format="#.000%")
                 if value is not None
-                else la.NOT_AVAILABLE
+                else NOT_AVAILABLE
             ),
             justify="right",
             style=(
-                co.RED
+                RED
                 if value is not None and value < 0
-                else co.GREEN if value is not None and value > 0 else ""
+                else GREEN if value is not None and value > 0 else ""
             ),
         )
 
@@ -246,7 +264,7 @@ class BalanceTable(Table):
     """
 
     def __init__(self, balance: BalanceData = None) -> None:
-        self._balance = balance if balance is not None else [(la.EUR, None)]
+        self._balance = balance if balance is not None else [(EUR, None)]
 
         super().__init__()
 
@@ -256,7 +274,7 @@ class BalanceTable(Table):
         for symbol, available in self._balance:
             self.add_row(
                 symbol,
-                DecimalText(available, currency=True if symbol != la.EUR else False),
+                DecimalText(available, currency=True if symbol != EUR else False),
             )
 
 
@@ -297,12 +315,12 @@ class CurrencyTable(Table):
 
         self.add_column()
         self.add_column()
-        self.add_row(la.PRICE, DecimalText(self._price))
-        self.add_row(la.CHANGE, PercentText(self._change))
+        self.add_row(PRICE, DecimalText(self._price))
+        self.add_row(CHANGE, PercentText(self._change))
         self.add_row()
-        self.add_row(la.HIGH, DecimalText(self._high))
-        self.add_row(la.LOW, DecimalText(self._low))
-        self.add_row(la.VOLUME, DecimalText(self._volume, currency=True))
+        self.add_row(HIGH, DecimalText(self._high))
+        self.add_row(LOW, DecimalText(self._low))
+        self.add_row(VOLUME, DecimalText(self._volume, currency=True))
 
 
 class ProfitLossTable(Table):
@@ -343,12 +361,12 @@ class ProfitLossTable(Table):
 
         self.add_column()
         self.add_column()
-        self.add_row(la.TODAY, DecimalText(self._today))
-        self.add_row(la.THIS_WEEK, DecimalText(self._week))
-        self.add_row(la.THIS_MONTH, DecimalText(self._month))
-        self.add_row(la.YEAR_TO_DATE, DecimalText(self._year))
+        self.add_row(TODAY, DecimalText(self._today))
+        self.add_row(THIS_WEEK, DecimalText(self._week))
+        self.add_row(THIS_MONTH, DecimalText(self._month))
+        self.add_row(YEAR_TO_DATE, DecimalText(self._year))
         self.add_row()
-        self.add_row(la.TOTAL, DecimalText(self._total))
+        self.add_row(TOTAL, DecimalText(self._total))
 
 
 class TransactionHistoryTable(Table):

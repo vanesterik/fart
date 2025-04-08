@@ -4,9 +4,32 @@ import mplfinance as mpf
 import numpy as np
 import pandas as pd
 
-from fart.constants import classes as cl
-from fart.constants import colors as co
-from fart.constants import feature_names as fn
+from fart.common.constants import (
+    BBANDS,
+    BBANDS_LOWER,
+    BBANDS_MIDDLE,
+    BBANDS_UPPER,
+    BUY_CLASS,
+    CLOSE,
+    EMA_FAST,
+    EMA_SLOW,
+    GREEN,
+    HONOLULU_BLUE,
+    IMPERIAL_RED_LIGHT,
+    IMPERIAL_RED_MAIN,
+    MACD,
+    MACD_HISTOGRAM,
+    MACD_SIGNAL,
+    PERSIAN_GREEN_LIGHT,
+    PERSIAN_GREEN_MAIN,
+    RED,
+    RSI,
+    SELL_CLASS,
+    TIMESTAMP,
+    TRADE_SIGNAL,
+    WHITE,
+    YELLOW_SEA,
+)
 from fart.features.technical_indicators_config import TechnicalIndicatorsConfig
 
 
@@ -78,7 +101,7 @@ class CandlestickChart:
         # end of the data.
         if timestamp:
             # Find the index of the timestamp in the DataFrame
-            center_index = self._df[fn.TIMESTAMP].searchsorted(timestamp)
+            center_index = self._df[TIMESTAMP].searchsorted(timestamp)
             # Define the start and end index of the window
             start = max(0, center_index - window_size // 2)
             end = start + window_size
@@ -128,27 +151,27 @@ class CandlestickChart:
         """
         return [
             mpf.make_addplot(
-                df[fn.BBANDS_MIDDLE],
-                color=co.HONOLULU_BLUE,
+                df[BBANDS_MIDDLE],
+                color=HONOLULU_BLUE,
                 fill_between=dict(
                     alpha=0.1,
-                    color=co.HONOLULU_BLUE,
-                    y1=df[fn.BBANDS_LOWER].values,
-                    y2=df[fn.BBANDS_UPPER].values,
+                    color=HONOLULU_BLUE,
+                    y1=df[BBANDS_LOWER].values,
+                    y2=df[BBANDS_UPPER].values,
                 ),
-                label=fn.BBANDS,
+                label=BBANDS,
                 panel=0,
             ),
             mpf.make_addplot(
-                df[fn.BBANDS_UPPER],
+                df[BBANDS_UPPER],
                 alpha=self._contour_line_alpha,
-                color=co.HONOLULU_BLUE,
+                color=HONOLULU_BLUE,
                 panel=0,
             ),
             mpf.make_addplot(
-                df[fn.BBANDS_LOWER],
+                df[BBANDS_LOWER],
                 alpha=self._contour_line_alpha,
-                color=co.HONOLULU_BLUE,
+                color=HONOLULU_BLUE,
                 panel=0,
             ),
         ]
@@ -169,33 +192,33 @@ class CandlestickChart:
         """
         return [
             mpf.make_addplot(
-                df[fn.EMA_FAST],
+                df[EMA_FAST],
                 alpha=self._contour_line_alpha,
-                color=co.HONOLULU_BLUE,
+                color=HONOLULU_BLUE,
                 fill_between=[
                     dict(
                         alpha=self._contour_line_alpha,
-                        color=co.PERSIAN_GREEN_MAIN,
-                        y1=df[fn.EMA_FAST].values,
-                        y2=df[fn.EMA_SLOW].values,
-                        where=df[fn.EMA_FAST] > df[fn.EMA_SLOW],
+                        color=PERSIAN_GREEN_MAIN,
+                        y1=df[EMA_FAST].values,
+                        y2=df[EMA_SLOW].values,
+                        where=df[EMA_FAST] > df[EMA_SLOW],
                     ),
                     dict(
                         alpha=self._contour_line_alpha,
-                        color=co.IMPERIAL_RED_MAIN,
-                        y1=df[fn.EMA_FAST].values,
-                        y2=df[fn.EMA_SLOW].values,
-                        where=df[fn.EMA_FAST] < df[fn.EMA_SLOW],
+                        color=IMPERIAL_RED_MAIN,
+                        y1=df[EMA_FAST].values,
+                        y2=df[EMA_SLOW].values,
+                        where=df[EMA_FAST] < df[EMA_SLOW],
                     ),
                 ],
-                label=fn.EMA_FAST,
+                label=EMA_FAST,
                 panel=0,
             ),
             mpf.make_addplot(
-                df[fn.EMA_SLOW],
+                df[EMA_SLOW],
                 alpha=self._contour_line_alpha,
-                color=co.HONOLULU_BLUE,
-                label=fn.EMA_SLOW,
+                color=HONOLULU_BLUE,
+                label=EMA_SLOW,
                 panel=0,
             ),
         ]
@@ -216,19 +239,19 @@ class CandlestickChart:
         """
         return [
             mpf.make_addplot(
-                df[fn.MACD],
-                color=co.YELLOW_SEA,
+                df[MACD],
+                color=YELLOW_SEA,
                 panel=1,
             ),
             mpf.make_addplot(
-                df[fn.MACD_SIGNAL],
-                color=co.HONOLULU_BLUE,
+                df[MACD_SIGNAL],
+                color=HONOLULU_BLUE,
                 panel=1,
             ),
             mpf.make_addplot(
-                df[fn.MACD_HISTOGRAM],
+                df[MACD_HISTOGRAM],
                 color=self._create_macd_colors(df),
-                ylabel=fn.MACD,
+                ylabel=MACD,
                 panel=1,
                 type="bar",
             ),
@@ -255,28 +278,28 @@ class CandlestickChart:
 
         return [
             mpf.make_addplot(
-                df[fn.RSI],
-                color=co.IMPERIAL_RED_MAIN,
+                df[RSI],
+                color=IMPERIAL_RED_MAIN,
                 fill_between=dict(
                     alpha=0.1,
-                    color=co.IMPERIAL_RED_MAIN,
+                    color=IMPERIAL_RED_MAIN,
                     y1=rsi_upper_bound,
                     y2=rsi_lower_bound,
                 ),
-                ylabel=fn.RSI,
+                ylabel=RSI,
                 panel=2,
             ),
             mpf.make_addplot(
                 rsi_upper_bound,
                 alpha=self._contour_line_alpha,
-                color=co.IMPERIAL_RED_MAIN,
+                color=IMPERIAL_RED_MAIN,
                 panel=2,
                 secondary_y=False,
             ),
             mpf.make_addplot(
                 rsi_lower_bound,
                 alpha=self._contour_line_alpha,
-                color=co.IMPERIAL_RED_MAIN,
+                color=IMPERIAL_RED_MAIN,
                 panel=2,
                 secondary_y=False,
             ),
@@ -301,11 +324,11 @@ class CandlestickChart:
         """
 
         buy_signals = [
-            (df[fn.CLOSE].iloc[i] if df[fn.TRADE_SIGNAL].iloc[i] == cl.BUY else np.NaN)
+            (df[CLOSE].iloc[i] if df[TRADE_SIGNAL].iloc[i] == BUY_CLASS else np.NaN)
             for i in range(len(df))
         ]
         sell_signals = [
-            (df[fn.CLOSE].iloc[i] if df[fn.TRADE_SIGNAL].iloc[i] == cl.SELL else np.NaN)
+            (df[CLOSE].iloc[i] if df[TRADE_SIGNAL].iloc[i] == SELL_CLASS else np.NaN)
             for i in range(len(df))
         ]
 
@@ -313,8 +336,8 @@ class CandlestickChart:
             indicators.append(
                 mpf.make_addplot(
                     buy_signals,
-                    color=co.GREEN,
-                    edgecolors=co.WHITE,
+                    color=GREEN,
+                    edgecolors=WHITE,
                     marker=self._marker,
                     markersize=self._marker_size,
                     panel=0,
@@ -326,8 +349,8 @@ class CandlestickChart:
             indicators.append(
                 mpf.make_addplot(
                     sell_signals,
-                    color=co.RED,
-                    edgecolors=co.WHITE,
+                    color=RED,
+                    edgecolors=WHITE,
                     marker=self._marker,
                     markersize=self._marker_size,
                     panel=0,
@@ -353,20 +376,20 @@ class CandlestickChart:
 
         colors = []
         for i in range(len(df)):
-            current_value = df[fn.MACD_HISTOGRAM].iloc[i]
-            previous_value = df[fn.MACD_HISTOGRAM].iloc[i - 1] if i > 0 else 0
+            current_value = df[MACD_HISTOGRAM].iloc[i]
+            previous_value = df[MACD_HISTOGRAM].iloc[i - 1] if i > 0 else 0
 
             if current_value >= 0:
                 colors.append(
-                    co.PERSIAN_GREEN_MAIN
+                    PERSIAN_GREEN_MAIN
                     if previous_value < current_value
-                    else co.PERSIAN_GREEN_LIGHT
+                    else PERSIAN_GREEN_LIGHT
                 )
             else:
                 colors.append(
-                    co.IMPERIAL_RED_MAIN
+                    IMPERIAL_RED_MAIN
                     if previous_value > current_value
-                    else co.IMPERIAL_RED_LIGHT
+                    else IMPERIAL_RED_LIGHT
                 )
 
         return colors

@@ -9,7 +9,7 @@ from fart.utils.converters import (
     create_period_timestamps,
     filter_trades_by_timestamp,
 )
-from fart.utils.trader import BalanceAsset, Trade
+from fart.core.exchange import BalanceAsset, Trade
 
 
 def test_convert_balance_data() -> None:
