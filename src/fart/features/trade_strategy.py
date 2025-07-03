@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Tuple
 
 import polars as pl
 
-from fart.common.constants import BUY_CLASS, CLOSE, SELL_CLASS, TIMESTAMP, TRADE_SIGNAL
+from fart.common.constants import BUY, CLOSE, SELL, TIMESTAMP, TRADE_SIGNAL
 
 
 class TradeStrategy:
@@ -96,10 +96,10 @@ class TradeStrategy:
         - row (Dict[str, Any]]]): Row in the DataFrame
 
         """
-        if row[TRADE_SIGNAL] == BUY_CLASS and not self._is_open_position:
+        if row[TRADE_SIGNAL] == BUY and not self._is_open_position:
             self._open_position(row)
 
-        elif row[TRADE_SIGNAL] == SELL_CLASS and self._is_open_position:
+        elif row[TRADE_SIGNAL] == SELL and self._is_open_position:
             self._close_position(row)
 
     def _open_position(self, row: Dict[str, Any]) -> None:

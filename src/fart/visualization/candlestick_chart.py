@@ -1,7 +1,6 @@
 from typing import List, Optional
 
 import mplfinance as mpf
-import numpy as np
 import pandas as pd
 
 from fart.common.constants import (
@@ -9,11 +8,8 @@ from fart.common.constants import (
     BBANDS_LOWER,
     BBANDS_MIDDLE,
     BBANDS_UPPER,
-    BUY_CLASS,
-    CLOSE,
     EMA_FAST,
     EMA_SLOW,
-    GREEN,
     HONOLULU_BLUE,
     IMPERIAL_RED_LIGHT,
     IMPERIAL_RED_MAIN,
@@ -22,12 +18,8 @@ from fart.common.constants import (
     MACD_SIGNAL,
     PERSIAN_GREEN_LIGHT,
     PERSIAN_GREEN_MAIN,
-    RED,
     RSI,
-    SELL_CLASS,
     TIMESTAMP,
-    TRADE_SIGNAL,
-    WHITE,
     YELLOW_SEA,
 )
 from fart.features.technical_indicators_config import TechnicalIndicatorsConfig
@@ -78,8 +70,6 @@ class CandlestickChart:
         data_window = self._slice_data_window(timestamp, window_size)
         # Define indicator plots based on all technical indicators
         indicators = self._add_indicator_plots(data_window)
-        # Add trade signals where applicable to the indicator plots
-        indicators = self._add_trade_signals(data_window, indicators)
 
         # Plot the candlestick chart with all bells and whistles
         mpf.plot(
@@ -304,61 +294,6 @@ class CandlestickChart:
                 secondary_y=False,
             ),
         ]
-
-    def _add_trade_signals(
-        self, df: pd.DataFrame, indicators: List[mpf.make_addplot]
-    ) -> List[mpf.make_addplot]:
-        """
-        Add trade signals to the candlestick chart.
-
-        Parameters
-        ----------
-        - df (pd.DataFrame): Pandas DataFrame containing candle data.
-        - indicator (List[mpf.make_addplot]): List of trade signals to plot.
-
-        Returns
-        -------
-        - indicator (List[mpf.make_addplot]): List of trade signals with
-          conditionally added buy and sell signals.
-
-        """
-
-        buy_signals = [
-            (df[CLOSE].iloc[i] if df[TRADE_SIGNAL].iloc[i] == BUY_CLASS else np.NaN)
-            for i in range(len(df))
-        ]
-        sell_signals = [
-            (df[CLOSE].iloc[i] if df[TRADE_SIGNAL].iloc[i] == SELL_CLASS else np.NaN)
-            for i in range(len(df))
-        ]
-
-        if buy_signals.count(np.NaN) != len(buy_signals):
-            indicators.append(
-                mpf.make_addplot(
-                    buy_signals,
-                    color=GREEN,
-                    edgecolors=WHITE,
-                    marker=self._marker,
-                    markersize=self._marker_size,
-                    panel=0,
-                    scatter=True,
-                )
-            )
-
-        if sell_signals.count(np.NaN) != len(sell_signals):
-            indicators.append(
-                mpf.make_addplot(
-                    sell_signals,
-                    color=RED,
-                    edgecolors=WHITE,
-                    marker=self._marker,
-                    markersize=self._marker_size,
-                    panel=0,
-                    scatter=True,
-                )
-            )
-
-        return indicators
 
     def _create_macd_colors(self, df: pd.DataFrame) -> List[str]:
         """
