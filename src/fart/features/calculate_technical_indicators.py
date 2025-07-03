@@ -63,29 +63,30 @@ def calculate_technical_indicators(df: pl.DataFrame) -> pl.DataFrame:
 
     """
     config = TechnicalIndicatorsConfig()
+    close_prices = df[CLOSE].to_numpy()
 
     # Bollinger Bands
     bbands_upper, bbands_middle, bbands_lower = calculate_bbands(
-        df[CLOSE],
+        close_prices,
         timeperiod=config.bbands.period,
         nbdevdn=config.bbands.standard_deviation,
         nbdevup=config.bbands.standard_deviation,
     )
 
     # Exponential Moving Averages
-    ema_fast = calculate_ema(df[CLOSE], timeperiod=config.ema.fast_period)
-    ema_slow = calculate_ema(df[CLOSE], timeperiod=config.ema.slow_period)
+    ema_fast = calculate_ema(close_prices, timeperiod=config.ema.fast_period)
+    ema_slow = calculate_ema(close_prices, timeperiod=config.ema.slow_period)
 
     # Moving Average Convergence Divergence
     macd, macd_signal, macd_histogram = calculate_macd(
-        df[CLOSE],
+        close_prices,
         fastperiod=config.macd.fast_period,
         slowperiod=config.macd.slow_period,
         signalperiod=config.macd.signal_period,
     )
 
     # Relative Strength Index
-    rsi = calculate_rsi(df[CLOSE], timeperiod=config.rsi.period)
+    rsi = calculate_rsi(close_prices, timeperiod=config.rsi.period)
 
     # Return DataFrame with calculated indicators
     return df.with_columns(
