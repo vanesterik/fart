@@ -1,0 +1,2 @@
+SYMBOL = "BTC-EUR"
+INTERVAL = "1d"

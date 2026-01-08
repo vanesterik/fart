@@ -1,0 +1,12 @@
+Event,Type,Date,Cadence,Details
+Genesis Block,Milestone,2009-01-03,One-time,"First block mined, start of Bitcoin network"
+First Halving,Halving,2012-11-28,"Every 210,000 blocks (~4 years)",Block reward reduced from 50 to 25 BTC
+Second Halving,Halving,2016-07-09,"Every 210,000 blocks (~4 years)",Block reward reduced from 25 to 12.5 BTC
+Third Halving,Halving,2020-05-11,"Every 210,000 blocks (~4 years)",Block reward reduced from 12.5 to 6.25 BTC
+Fourth Halving,Halving,2024-04-19,"Every 210,000 blocks (~4 years)",Block reward reduced from 6.25 to 3.125 BTC
+Next Halving,Halving,2028-04-01,"Every 210,000 blocks (~4 years)",Estimated block reward reduction from 3.125 to 1.5625 BTC
+Difficulty Adjustment,Protocol,Ongoing,"Every 2,016 blocks (~2 weeks)",Mining difficulty adjusts based on hashrate
+Block Time,Protocol,Ongoing,Every ~10 minutes,New blocks added to the blockchain
+SegWit Activation,Upgrade,2017-08-24,One-time,Segregated Witness protocol upgrade
+Taproot Activation,Upgrade,2021-11-14,One-time,Taproot upgrade for improved privacy and scripting
+Bitcoin Pizza Day,Cultural,2010-05-22,Annually on May 22,First real-world transaction using Bitcoin
