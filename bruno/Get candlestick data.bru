@@ -1,0 +1,26 @@
+meta {
+  name: Get candlestick data
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://api.bitvavo.com/v2/:market/candles?interval=1d&start=1552089600000&end=1676505600000
+  body: none
+  auth: inherit
+}
+
+params:query {
+  interval: 1d
+  start: 1552089600000
+  end: 1676505600000
+}
+
+params:path {
+  market: BTC-EUR
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

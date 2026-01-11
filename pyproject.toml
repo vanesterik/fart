@@ -3,93 +3,94 @@ name = "fart"
 version = "0.1.0"
 description = "Financial Analysis & Real-time Trading"
 authors = [{ name = "Koen van Esterik", email = "koen@vanesterik.dev" }]
-dependencies = [
-    "babel>=2.16.0",
-    "click>=8.1.7",
-    "jupyter>=1.0.0",
-    "loguru>=0.7.2",
-    "matplotlib>=3.8.2",
-    "mplfinance>=0.12.10b0",
-    "pandas>=2.2.0",
-    "polars>=1.1.0",
-    "pyarrow>=16.0.0",
-    "pydantic>=2.9.2",
-    "python-bitvavo-api>=1.4.2",
-    "python-dotenv>=1.0.1",
-    "scikit-learn>=1.4.2",
-    "statsmodels>=0.14.2",
-    "ta-lib>=0.6.4",
-    "tabulate>=0.9.0",
-    "xgboost>=2.0.3",
-]
-requires-python = ">=3.11"
-readme = "README.md"
 license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11"
 
+
+dependencies = [
+    "click>=8.3.1",
+    "jupyter>=1.0.0",
+    "loguru>=0.7.3",
+    "matplotlib>=3.10.8",
+    "numpy>=2.3.5",
+    "owslib>=0.35.0",
+    "pillow>=12.0.0",
+    "polars>=1.36.1",
+    "pydantic>=2.12.5",
+    "pytest-cov>=7.0.0",
+    "pytest>=9.0.2",
+    "python-bitvavo-api>=1.4.3",
+    "python-dotenv>=1.0.1",
+    "tabulate>=0.9.0",
+    "torch>=2.9.1",
+    "tqdm>=4.67.1",
+    "typer>=0.20.0",
+]
 
 [dependency-groups]
 dev = [
-    "autoflake>=2.3.1",
-    "black>=24.1.1",
-    "isort>=5.13.2",
-    "mypy>=1.10.1",
-    "pytest-watch>=4.2.0",
-    "pytest>=8.2.2",
-    "ruff>=0.1.14",
+    "pyright>=1.1.407",
+    "ruff>=0.14.8",
 ]
 
 
-[tool.pdm]
-distribution = true
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 
-[tool.autoflake]
-check = true
+[project.scripts]
+fart = "fart.cli:app"
 
 
-[tool.isort]
-atomic = true
-case_sensitive = true
-extra_standard_library = ["typing_extensions"]
-include_trailing_comma = true
-line_length = 120
-multi_line_output = 3
-profile = "black"
-py_version = 311
-remove_redundant_aliases = true
-skip_gitignore = true
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fart"]
 
 
-[tool.mypy]
-disallow_any_generics = true
-disallow_incomplete_defs = true
-disallow_untyped_calls = true
-disallow_untyped_decorators = true
-disallow_untyped_defs = true
-ignore_missing_imports = true # Don't like this, but necessary for now because mypy triggers error on imported modules
-namespace_packages = false
-no_implicit_reexport = true
-show_error_codes = true
-show_error_context = true
-strict_equality = true
-strict_optional = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unused_ignores = true
+[tool.pyright]
+include = ["src"]
+exclude = ["tests"]
+typeCheckingMode = "strict"
 
 
 [tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q"
-testpaths = ["tests"]
-python_files = "test_*.py"
-python_functions = "test_*"
-python_classes = "Test*"
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "fast: marks tests as fast",
+testpaths = ["tests"]                        # Directories to search for tests
+python_files = ["test_*.py"]                 # Test file patterns
+python_classes = ["Test*"]                   # Test class patterns
+python_functions = ["test_*"]                # Test function patterns
+pythonpath = ["src"]                         # Add src to Python path
+addopts = [                                  # Additional command-line options
+    "-v",                                    # Verbose output
+    "--strict-markers",                      # Error on unknown markers
+    "--cov=fart",                            # Measure coverage for this package
+    "--cov-report=term-missing",             # Show missing lines in terminal
+    "--cov-fail-under=80",                   # Fail if coverage < 80%
 ]
-log_cli = true
-log_cli_level = "INFO"
-log_cli_format = "%(asctime)s [%(levelname)s] %(message)s"
-log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+markers = [                                  # Custom markers
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+source = ["src/fart"]                        # What to measure
+branch = true                                # Measure branch coverage (if/else)
+omit = [                                     # What to exclude - use wildcards that work on Windows
+    "__init__.py",
+    "cli.py",
+]
+
+[tool.coverage.report]
+precision = 2                               # Decimal places in coverage report 
+show_missing = true                         # Show missing lines in report
+skip_covered = false                        # Don't skip fully covered files
