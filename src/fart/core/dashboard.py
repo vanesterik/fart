@@ -9,7 +9,7 @@ from rich.panel import Panel as BasePanel
 from rich.table import Table as BaseTable
 from rich.text import Text
 
-from fart.common.constants import (
+from fart.constants import (
     BALANCE,
     CHANGE,
     DOVE_GREY,
@@ -248,7 +248,9 @@ class PercentText(Text):
             style=(
                 RED
                 if value is not None and value < 0
-                else GREEN if value is not None and value > 0 else ""
+                else GREEN
+                if value is not None and value > 0
+                else ""
             ),
         )
 

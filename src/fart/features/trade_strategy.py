@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Tuple
 
 import polars as pl
 
-from fart.common.constants import BUY, CLOSE, SELL, TIMESTAMP, TRADE_SIGNAL
+from fart.constants import BUY, CLOSE, SELL, TIMESTAMP, TRADE_SIGNAL
 
 
 class TradeStrategy:

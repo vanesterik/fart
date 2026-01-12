@@ -1,6 +1,6 @@
 import polars as pl
 
-from fart.common.constants import DATETIME, TIMESTAMP
+from fart.constants import DATETIME, TIMESTAMP
 
 
 def parse_timestamp_to_datetime(df: pl.DataFrame) -> pl.DataFrame:

@@ -8,7 +8,7 @@ from python_bitvavo_api.bitvavo import Bitvavo  # type: ignore
 from tabulate import tabulate
 from tqdm import tqdm
 
-from fart.common.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
+from fart.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
 from fart.settings import Candle, Interval, Settings
 
 
@@ -22,10 +22,11 @@ class Downloader:
             }
         )
         self._validate_settings()
+        self._determine_filepath()
         self._log_settings()
 
     def download(self) -> None:
-        filepath = self._determine_filepath(self._settings)
+        filepath = self._filepath
         candle_data = self._load_cached_candle_data(filepath)
         start_timestamp = self._determine_start_timestamp(candle_data)
         timestamp_list = self._calculate_timestamp_list(
@@ -45,28 +46,29 @@ class Downloader:
             self._save_candle_data(candle_data, filepath)
 
     def _validate_settings(self):
-        data_dir = self._settings.data_dir
         market = self._settings.market
         markets = self._client.markets()  # type: ignore
 
         if not any(item["market"] == market for item in markets):
             raise ValueError(f"Market '{market}' not found in Bitvavo markets")
 
-        # Ensure data directory exists, create it otherwise
+    def _determine_filepath(self):
+        data_dir = self._settings.data_dir
         data_dir.mkdir(parents=True, exist_ok=True)
+        market = self._settings.market
+        interval = self._settings.interval.value
+        self._filepath = data_dir / f"{market}-{interval}.csv"
 
     def _log_settings(self):
         settings_ = self._settings.model_dump()
-        settings_["api_secret"] = "*" * len(self._settings.api_key or "")
+        # Remove sensitive keys
+        settings_.pop("api_key", None)
+        settings_.pop("api_secret", None)
+        # Add filepath for logging
         settings_["interval"] = self._settings.interval.value
+        settings_["filepath"] = str(self._filepath)
         table = tabulate(settings_.items())
-        logger.info(f"\n\nFART // DOWNLOADER\n\n{table}\n")
-
-    def _determine_filepath(self, settings: Settings) -> Path:
-        data_dir = settings.data_dir
-        market = settings.market
-        interval = settings.interval.value
-        return data_dir / f"{market}-{interval}.csv"
+        logger.info(f"\n\nF.A.R.T. Downloader\n\n{table}\n")
 
     def _load_cached_candle_data(self, filepath: Path) -> List[Candle]:
         if not filepath.exists():

@@ -3,7 +3,7 @@ from typing import List, Optional
 import mplfinance as mpf
 import pandas as pd
 
-from fart.common.constants import (
+from fart.constants import (
     BBANDS,
     BBANDS_LOWER,
     BBANDS_MIDDLE,

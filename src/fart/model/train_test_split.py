@@ -4,7 +4,7 @@ import pandas as pd
 import polars as pl
 from sklearn.model_selection import train_test_split as base_train_test_split
 
-from fart.common.constants import CLOSE
+from fart.constants import CLOSE
 
 
 def train_test_split(

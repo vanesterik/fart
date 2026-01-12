@@ -6,7 +6,7 @@ from talib import MACD as calculate_macd
 from talib import RSI as calculate_rsi
 
 # Internal imports
-from fart.common.constants import (
+from fart.constants import (
     BBANDS_LOWER,
     BBANDS_MIDDLE,
     BBANDS_UPPER,
