@@ -19,7 +19,7 @@ The name **FART** is an abbreviation play on the title "Financial Analysis and R
 Use the following command to install the project:
 
 ```bash
-pdm install
+uv sync
 ```
 
 ## Usage
@@ -109,7 +109,7 @@ The project is based on the [cookiecutter data science project template](https:/
     │
     ├── tests              <- Unit tests of various modules and functions.
     │
-    ├── pyproject.toml     <- The project file for reproducing the analysis environment, e.g. generated with `pdm init`.
+    ├── pyproject.toml     <- The project file for reproducing the analysis environment, e.g. generated with `uv init`.
     │                         
     └── src/fart           <- Source code for use in this project.
         ├── __init__.py    <- Makes src a Python module.
