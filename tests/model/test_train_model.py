@@ -1,8 +1,9 @@
 from pathlib import Path
 
 import pytest
+from loguru import logger
 
-from fart.model.train_model import prepare_training_data
+from fart.model.train_model import prepare_training_data, train
 from fart.settings import Interval, Settings
 
 CSV_HEADER = "Timestamp,Open,High,Low,Close,Volume\n"
@@ -50,3 +51,22 @@ def test_prepare_training_data_missing_csv_raises(tmp_path: Path) -> None:
 
     with pytest.raises(FileNotFoundError):
         prepare_training_data(settings)
+
+
+def test_train_logs_prepared_shapes(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path,
+        market="BTC-EUR",
+        interval=Interval.ONE_DAY,
+    )
+    _write_candle_csv(tmp_path / "BTC-EUR-1d.csv")
+
+    messages: list[str] = []
+    sink_id = logger.add(messages.append, level="INFO")
+
+    try:
+        train(settings)
+    finally:
+        logger.remove(sink_id)
+
+    assert any("X_train" in message for message in messages)

@@ -2,6 +2,7 @@ from typing import Tuple
 
 import pandas as pd
 import polars as pl
+from loguru import logger
 
 from fart.features.calculate_technical_indicators import calculate_technical_indicators
 from fart.model.train_test_split import train_test_split
@@ -24,3 +25,11 @@ def prepare_training_data(
     df = df.fill_nan(None).drop_nulls()
 
     return train_test_split(df)
+
+
+def train(settings: Settings) -> None:
+    X_train, X_test, y_train, y_test = prepare_training_data(settings)
+    logger.info(
+        f"Prepared training data: X_train={X_train.shape}, "
+        f"X_test={X_test.shape}, y_train={y_train.shape}, y_test={y_test.shape}"
+    )
