@@ -33,7 +33,7 @@ Dependency management is via `uv` (see `uv.lock`). The `Makefile` targets (`form
 
 ```bash
 uv sync                          # install dependencies
-uv run fart download             # download candle data (see options below)
+uv run fart download             # download candle data (see arguments below)
 uv run pytest                    # run test suite
 uv run pytest tests/features/test_trade_strategy.py::test_single_trade  # single test
 uv run pytest -m "not slow"      # skip slow tests
@@ -42,7 +42,7 @@ uv run ruff check . --fix        # lint
 uv run pyright                   # type check (strict mode, src/ only — tests/ excluded)
 ```
 
-`fart download` options: `--data-dir`, `--market` (e.g. `BTC-EUR`), `--interval` (e.g. `1d`, `1h`, `30m` — see `Interval` enum in `settings.py`). Requires `BITVAVO_API_KEY` / `BITVAVO_API_SECRET` env vars (loaded via `.env` through `python-dotenv`); downloads are cached as CSV per market/interval under `data_dir` and resume from the last cached candle rather than re-fetching from scratch.
+`fart download` takes three positional arguments, in order — `data_dir` (default `assets`), `market` (e.g. `BTC-EUR`, default `BTC-EUR`), `interval` (e.g. `1d`, `1h`, `30m` — see `Interval` enum in `settings.py`, default `1d`) — e.g. `uv run fart download assets BTC-EUR 1h`. Requires `BITVAVO_API_KEY` / `BITVAVO_API_SECRET` env vars (loaded via `.env` through `python-dotenv`); downloads are cached as CSV per market/interval under `data_dir` and resume from the last cached candle rather than re-fetching from scratch.
 
 Pre-commit hooks are managed by `lefthook` (`.lefthook.yml`): notebooks get their outputs stripped, Python files get `ruff format` + `ruff check --fix`, then `pyright`, on every commit.
 

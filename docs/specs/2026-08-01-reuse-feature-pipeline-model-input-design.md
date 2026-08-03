@@ -3,7 +3,7 @@
 **Date:** 2026-08-01
 **Status:** Approved
 **Source:** [GitHub issue #4](https://github.com/vanesterik/fart/issues/4), part of [Epic #1: N-BEATS Signal Model](https://github.com/vanesterik/fart/issues/1)
-**Related PRD:** `docs/product/prd/part-a-signal-generation-refactor.md` (Story 1)
+**Related PRD:** `docs/product/part-a-signal-generation-refactor-prd.md` (Story 1)
 
 ## Problem
 

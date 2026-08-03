@@ -38,7 +38,7 @@ def download(
         typer.Argument(
             help="Data interval (e.g., '1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '1W', '1M')."
         ),
-    ] = "1m",
+    ] = "1d",
 ) -> None:
     arguments = {
         "data_dir": data_dir,

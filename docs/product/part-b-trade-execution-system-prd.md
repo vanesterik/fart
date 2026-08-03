@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-01
 **Status:** Draft
-**Source:** Adapted from [Problem Framing Canvas](../canvas/part-b-trade-execution-system.md)
+**Source:** Adapted from [Problem Framing Canvas](./part-b-trade-execution-system.md)
 
 ---
 
