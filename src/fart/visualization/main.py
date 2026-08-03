@@ -1,5 +1,4 @@
 import click
-import matplotlib.pyplot as plt
 import polars as pl
 
 from fart.common import feature_names as fn
@@ -13,7 +12,6 @@ from fart.visualization.plot_candlestick_chart import plot_candlestick_chart
 @click.option("--start", type=click.INT)
 @click.option("--end", type=click.INT)
 def main(start: int, end: int) -> None:
-
     last_modified_data_file = get_last_modified_data_file("./data")
     df = pl.read_csv(last_modified_data_file)
     df = parse_timestamp_to_datetime(df)
@@ -26,5 +24,4 @@ def main(start: int, end: int) -> None:
 
 
 if __name__ == "__main__":
-
     main()

@@ -1,6 +1,4 @@
-import os
 import tempfile
-import time
 from pathlib import Path
 
 import pytest
@@ -10,7 +8,6 @@ from fart.utils.get_last_modified_data_file import get_last_modified_data_file
 
 def test_get_last_modified_data_file() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-
         file1 = Path(temp_dir) / "file1.csv"
         file2 = Path(temp_dir) / "file2.csv"
         file3 = Path(temp_dir) / "file3.csv"
@@ -30,7 +27,6 @@ def test_get_last_modified_data_file_empty_dir() -> None:
 
 def test_get_last_modified_data_file_no_csv_files() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-
         file1 = Path(temp_dir) / "file1.txt"
         file2 = Path(temp_dir) / "file2.doc"
 
