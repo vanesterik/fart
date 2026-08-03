@@ -1,5 +1,6 @@
 import sys
 from os import getenv
+from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
@@ -10,6 +11,7 @@ from fart.downloader import Downloader
 from fart.model import train_model
 from fart.settings import Settings
 from fart.utils import update_settings
+
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -62,33 +64,23 @@ def download(
 @app.command()
 def train(
     data_dir: Annotated[
-        Optional[str],
-        typer.Option(
+        str,
+        typer.Argument(
             help="Folder to load candle data from (defaults to system cache directory)."
         ),
-    ] = None,
+    ] = "assets",
     market: Annotated[
-        Optional[str],
-        typer.Option(help="Market to train on (e.g., 'BTC-EUR', 'BTC-USDC')."),
-    ] = None,
+        str,
+        typer.Argument(help="Market to train on (e.g., 'BTC-EUR', 'BTC-USDC')."),
+    ] = "BTC-EUR",
     interval: Annotated[
-        Optional[str],
-        typer.Option(
+        str,
+        typer.Argument(
             help="Data interval (e.g., '1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '1W', '1M')."
         ),
-    ] = None,
+    ] = "1d",
 ) -> None:
-    arguments = {
-        "data_dir": data_dir,
-        "market": market,
-        "interval": interval,
-    }
-    settings = update_settings(
-        settings=Settings(),
-        arguments=arguments,
-    )
-
-    train_model.train(settings)
+    train_model.train(data_dir=Path(data_dir), market=market, interval=interval)
 
 
 if __name__ == "__main__":

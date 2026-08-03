@@ -55,7 +55,11 @@ class Downloader:
 
     def _determine_filepath(self):
         self._settings.data_dir.mkdir(parents=True, exist_ok=True)
-        self._filepath = get_candle_filepath(self._settings)
+        self._filepath = get_candle_filepath(
+            self._settings.data_dir,
+            self._settings.market,
+            self._settings.interval.value,
+        )
 
     def _log_settings(self):
         settings_ = self._settings.model_dump()

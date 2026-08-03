@@ -20,10 +20,8 @@ def update_settings(
     return Settings(**settings_)
 
 
-def get_candle_filepath(settings: Settings) -> Path:
-    market = settings.market
-    interval = settings.interval.value
-    return settings.data_dir / f"{market}-{interval}.csv"
+def get_candle_filepath(data_dir: Path, market: str, interval: str) -> Path:
+    return data_dir / f"{market}-{interval}.csv"
 
 
 def get_last_modified_data_file(data_dir: str) -> Path:

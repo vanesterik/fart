@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Tuple
 
 import pandas as pd
@@ -6,14 +7,15 @@ from loguru import logger
 
 from fart.features.calculate_technical_indicators import calculate_technical_indicators
 from fart.model.train_test_split import train_test_split
-from fart.settings import Settings
 from fart.utils import get_candle_filepath
 
 
 def prepare_training_data(
-    settings: Settings,
+    data_dir: Path,
+    market: str,
+    interval: str,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
-    filepath = get_candle_filepath(settings)
+    filepath = get_candle_filepath(data_dir, market, interval)
 
     if not filepath.exists():
         raise FileNotFoundError(
@@ -27,8 +29,8 @@ def prepare_training_data(
     return train_test_split(df)
 
 
-def train(settings: Settings) -> None:
-    X_train, X_test, y_train, y_test = prepare_training_data(settings)
+def train(data_dir: Path, market: str, interval: str) -> None:
+    X_train, X_test, y_train, y_test = prepare_training_data(data_dir, market, interval)
     logger.info(
         f"Prepared training data: X_train={X_train.shape}, "
         f"X_test={X_test.shape}, y_train={y_train.shape}, y_test={y_test.shape}"
