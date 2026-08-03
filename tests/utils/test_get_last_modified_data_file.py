@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from fart.utils.get_last_modified_data_file import get_last_modified_data_file
+from fart.utils import get_last_modified_data_file
 
 
 def test_get_last_modified_data_file() -> None:
