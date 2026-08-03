@@ -7,6 +7,7 @@ from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 
 from fart.downloader import Downloader
+from fart.model import train_model
 from fart.settings import Settings
 from fart.utils import update_settings
 
@@ -56,6 +57,34 @@ def download(
 
     downloader = Downloader(settings)
     downloader.download()
+
+
+@app.command()
+def train(
+    data_dir: Optional[str] = typer.Option(
+        None,
+        help="Folder to load candle data from (defaults to system cache directory).",
+    ),
+    market: Optional[str] = typer.Option(
+        None,
+        help="Market to train on (e.g., 'BTC-EUR', 'BTC-USDC').",
+    ),
+    interval: Optional[str] = typer.Option(
+        None,
+        help="Data interval (e.g., '1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '1W', '1M').",
+    ),
+) -> None:
+    arguments = {
+        "data_dir": data_dir,
+        "market": market,
+        "interval": interval,
+    }
+    settings = update_settings(
+        settings=Settings(),
+        arguments=arguments,
+    )
+
+    train_model.train(settings)
 
 
 if __name__ == "__main__":
