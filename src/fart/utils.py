@@ -1,23 +1,4 @@
 from pathlib import Path
-from typing import Dict, Union
-
-from fart.settings import Settings
-
-
-def update_settings(
-    settings: Settings,
-    arguments: Dict[str, Union[str, None]],
-) -> Settings:
-    # Filter out None values
-    updates = {k: v for k, v in arguments.items() if v is not None}
-
-    if not updates:
-        return settings
-
-    settings_ = settings.model_dump()
-    settings_.update(updates)
-
-    return Settings(**settings_)
 
 
 def get_candle_filepath(data_dir: Path, market: str, interval: str) -> Path:

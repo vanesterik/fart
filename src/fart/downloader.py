@@ -9,35 +9,45 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 from fart.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
-from fart.settings import Candle, Interval, Settings
 from fart.utils import get_candle_filepath
+
+Candle = Tuple[int, float, float, float, float, float]
 
 
 class Downloader:
-    def __init__(self, settings: Settings):
-        self._settings = settings
+    def __init__(
+        self,
+        data_dir: Path,
+        market: str,
+        interval: str,
+        api_key: str | None,
+        api_secret: str | None,
+    ):
+        self._data_dir = data_dir
+        self._market = market
+        self._interval = interval
         self._client = Bitvavo(
             {
-                "APIKEY": self._settings.api_key,
-                "APISECRET": self._settings.api_secret,
+                "APIKEY": api_key,
+                "APISECRET": api_secret,
             }
         )
-        self._validate_settings()
+        self._validate_market()
         self._determine_filepath()
-        self._log_settings()
+        self._log_configuration()
 
     def download(self) -> None:
         filepath = self._filepath
         candle_data = self._load_cached_candle_data(filepath)
         start_timestamp = self._determine_start_timestamp(candle_data)
         timestamp_list = self._calculate_timestamp_list(
-            start_timestamp, interval=self._settings.interval
+            start_timestamp, interval=self._interval
         )
 
         for start, end in tqdm(timestamp_list, desc="Downloading"):
             candles: List[Candle] = self._client.candles(  # type: ignore
-                self._settings.market,
-                self._settings.interval.value,
+                self._market,
+                self._interval,
                 start=self._convert_timestamp(start),
                 end=self._convert_timestamp(end),
             )
@@ -46,30 +56,28 @@ class Downloader:
             # Save after each batch to avoid data loss
             self._save_candle_data(candle_data, filepath)
 
-    def _validate_settings(self):
-        market = self._settings.market
+    def _validate_market(self):
         markets = self._client.markets()  # type: ignore
 
-        if not any(item["market"] == market for item in markets):
-            raise ValueError(f"Market '{market}' not found in Bitvavo markets")
+        if not any(item["market"] == self._market for item in markets):
+            raise ValueError(f"Market '{self._market}' not found in Bitvavo markets")
 
     def _determine_filepath(self):
-        self._settings.data_dir.mkdir(parents=True, exist_ok=True)
+        self._data_dir.mkdir(parents=True, exist_ok=True)
         self._filepath = get_candle_filepath(
-            self._settings.data_dir,
-            self._settings.market,
-            self._settings.interval.value,
+            self._data_dir,
+            self._market,
+            self._interval,
         )
 
-    def _log_settings(self):
-        settings_ = self._settings.model_dump()
-        # Remove sensitive keys
-        settings_.pop("api_key", None)
-        settings_.pop("api_secret", None)
-        # Add filepath for logging
-        settings_["interval"] = self._settings.interval.value
-        settings_["filepath"] = str(self._filepath)
-        table = tabulate(settings_.items())
+    def _log_configuration(self):
+        configuration = {
+            "data_dir": str(self._data_dir),
+            "market": self._market,
+            "interval": self._interval,
+            "filepath": str(self._filepath),
+        }
+        table = tabulate(configuration.items())
         logger.info(f"\n\nF.A.R.T. Downloader\n\n{table}\n")
 
     def _load_cached_candle_data(self, filepath: Path) -> List[Candle]:
@@ -103,7 +111,7 @@ class Downloader:
     def _calculate_timestamp_list(
         self,
         start_timestamp: int,
-        interval: Interval = Interval.ONE_DAY,
+        interval: str = "1d",
         epochs: int = 1440,  # Max limit per request set by Bitvavo
     ) -> List[Tuple[int, int]]:
         timestamps = [start_timestamp]
@@ -123,7 +131,7 @@ class Downloader:
     def _calculate_timestamp(
         self,
         timestamp: int,
-        interval: Interval = Interval.ONE_DAY,
+        interval: str = "1d",
         epochs: int = 1440,  # Max limit per request set by Bitvavo
     ) -> int:
         # Convert milliseconds to seconds, then to datetime
