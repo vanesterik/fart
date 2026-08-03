@@ -9,8 +9,9 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 from fart.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
-from fart.settings import Candle
 from fart.utils import get_candle_filepath
+
+Candle = Tuple[int, float, float, float, float, float]
 
 
 class Downloader:
