@@ -1,6 +1,6 @@
 import sys
 from os import getenv
-from typing import Optional
+from typing import Annotated, Optional
 
 import typer
 from dotenv import find_dotenv, load_dotenv
@@ -21,18 +21,24 @@ load_dotenv(find_dotenv())
 
 @app.command()
 def download(
-    data_dir: Optional[str] = typer.Option(
-        None,
-        help="Folder to save downloaded data (defaults to system cache directory).",
-    ),
-    market: Optional[str] = typer.Option(
-        None,
-        help="Market to download data for (e.g., 'BTC-EUR', 'BTC-USDC').",
-    ),
-    interval: Optional[str] = typer.Option(
-        None,
-        help="Data interval (e.g., '1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '1W', '1M').",
-    ),
+    data_dir: Annotated[
+        Optional[str],
+        typer.Argument(
+            help="Folder to save downloaded data (defaults to system cache directory)."
+        ),
+    ] = "assets",
+    market: Annotated[
+        Optional[str],
+        typer.Argument(
+            help="Market to download data for (e.g., 'BTC-EUR', 'BTC-USDC')."
+        ),
+    ] = "BTC-EUR",
+    interval: Annotated[
+        Optional[str],
+        typer.Argument(
+            help="Data interval (e.g., '1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '1W', '1M')."
+        ),
+    ] = "1d",
 ) -> None:
     arguments = {
         "data_dir": data_dir,

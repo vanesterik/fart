@@ -28,25 +28,24 @@ clean:
 
 ## Format code
 format:
-	pdm run black src
-	pdm run isort src
+	uv run ruff format src
 
 ## Lint code
 lint:
-	pdm run ruff src
-	pdm run mypy src
+	uv run ruff check src
+	uv run pyright
 
 ## Install dependencies
 requirements:
-	pdm install
+	uv sync
 
 ## Test code
 test:
-	pdm run pytest
+	uv run pytest
 
 ## Test code in watch mode
 test_watch:
-	pdm run ptw
+	uv run pytest-watch
 
 
 ################################################################################
@@ -55,15 +54,15 @@ test_watch:
 
 ## Run main script
 run:
-	pdm run ${PROJECT_DIR}/src/${PROJECT_NAME}/main.py
+	uv run ${PROJECT_DIR}/src/${PROJECT_NAME}/main.py
 
 ## Retrieve data from source
 data:
-	pdm run ${PROJECT_DIR}/src/${PROJECT_NAME}/data/make_dataset.py
+	uv run ${PROJECT_DIR}/src/${PROJECT_NAME}/data/make_dataset.py
 
 ## Generate visualization
 visual:
-	pdm run ${PROJECT_DIR}/src/${PROJECT_NAME}/visualization/main.py
+	uv run ${PROJECT_DIR}/src/${PROJECT_NAME}/visualization/main.py
 
 
 ################################################################################
