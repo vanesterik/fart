@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from fart.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
 from fart.settings import Candle, Interval, Settings
+from fart.utils import get_candle_filepath
 
 
 class Downloader:
@@ -53,11 +54,8 @@ class Downloader:
             raise ValueError(f"Market '{market}' not found in Bitvavo markets")
 
     def _determine_filepath(self):
-        data_dir = self._settings.data_dir
-        data_dir.mkdir(parents=True, exist_ok=True)
-        market = self._settings.market
-        interval = self._settings.interval.value
-        self._filepath = data_dir / f"{market}-{interval}.csv"
+        self._settings.data_dir.mkdir(parents=True, exist_ok=True)
+        self._filepath = get_candle_filepath(self._settings)
 
     def _log_settings(self):
         settings_ = self._settings.model_dump()
