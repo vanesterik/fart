@@ -27,6 +27,10 @@ When working in these areas, check whether you're extending the intended new str
 
 Never reference "superpowers" in code, file paths, or directory structure — e.g. no `docs/superpowers/...`. Specs and design docs live under `docs/specs/`.
 
+## Library and framework syntax
+
+Before writing or extending code against a library whose idiomatic patterns evolve over time (Typer, Pydantic, FastAPI, scikit-learn, etc.), use the `context7` MCP tool to check current syntax rather than relying on possibly-outdated recall. Also match the style of any existing sibling function/command in the same file (e.g. `fart/cli.py`'s Typer commands) rather than introducing a second, inconsistent pattern.
+
 ## Commands
 
 Dependency management is via `uv` (see `uv.lock`). The `Makefile` targets (`format`, `lint`, `requirements`, `test`, `run`, `data`, `visual`) wrap the `uv run ...` commands below.

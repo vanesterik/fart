@@ -1,6 +1,6 @@
 import polars as pl
 
-from fart.common.constants import TIMESTAMP, TRADE_SIGNAL
+from fart.constants import TIMESTAMP, TRADE_SIGNAL
 from fart.model.train_test_split import train_test_split
 
 
@@ -13,7 +13,7 @@ def test_train_test_split() -> None:
     df = pl.DataFrame(data)
 
     # Perform the train-test split
-    X_train, X_test, y_train, y_test = train_test_split(df)
+    X_train, X_test, y_train, y_test = train_test_split(df, target=TRADE_SIGNAL)
 
     # Check the shapes of the splits
     assert X_train.shape[0] == 8
@@ -22,7 +22,7 @@ def test_train_test_split() -> None:
     assert y_test.shape[0] == 2
 
     # Check the content of the splits
-    assert X_train.iloc[0][TIMESTAMP] == 0
-    assert X_test.iloc[0][TIMESTAMP] == 8
-    assert y_train.iloc[0] == 0
-    assert y_test.iloc[0] == 0
+    assert X_train[0, TIMESTAMP] == 0
+    assert X_test[0, TIMESTAMP] == 8
+    assert y_train[0] == 0
+    assert y_test[0] == 0
