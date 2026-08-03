@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Tuple
 
-import pandas as pd
 import polars as pl
 from loguru import logger
 
@@ -14,7 +13,7 @@ def prepare_training_data(
     data_dir: Path,
     market: str,
     interval: str,
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+) -> Tuple[pl.DataFrame, pl.DataFrame, pl.Series, pl.Series]:
     filepath = get_candle_filepath(data_dir, market, interval)
 
     if not filepath.exists():

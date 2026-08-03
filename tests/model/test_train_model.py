@@ -29,10 +29,10 @@ def test_prepare_training_data_returns_clean_split(tmp_path: Path) -> None:
         interval="1d",
     )
 
-    assert not X_train.isnull().values.any()
-    assert not X_test.isnull().values.any()
-    assert not y_train.isnull().values.any()
-    assert not y_test.isnull().values.any()
+    assert X_train.null_count().sum_horizontal().item() == 0
+    assert X_test.null_count().sum_horizontal().item() == 0
+    assert not y_train.is_null().any()
+    assert not y_test.is_null().any()
 
     assert X_train.shape[0] == y_train.shape[0]
     assert X_test.shape[0] == y_test.shape[0]

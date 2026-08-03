@@ -1,8 +1,7 @@
+import math
 from typing import Tuple
 
-import pandas as pd
 import polars as pl
-from sklearn.model_selection import train_test_split as base_train_test_split
 
 from fart.constants import CLOSE
 
@@ -11,45 +10,39 @@ def train_test_split(
     df: pl.DataFrame,
     target: str = CLOSE,
     test_size: float = 0.2,
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+) -> Tuple[pl.DataFrame, pl.DataFrame, pl.Series, pl.Series]:
     """
     Split the data into training and testing sets.
 
     Parameters
     ----------
     - df (pl.DataFrame): A DataFrame containing the data to split.
+    - target (str): The name of the target column.
     - test_size (float): The proportion of the data to include in the test
-      split. This can also be an integer representing the number of rows to
-      include in the test split.
+      split.
 
     Returns
     -------
-    - Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]: A tuple
+    - Tuple[pl.DataFrame, pl.DataFrame, pl.Series, pl.Series]: A tuple
       containing the following:
-        - X_train (pd.DataFrame): Training data
-        - X_test (pd.DataFrame): Testing data
-        - y_train (pd.Series): Training target
-        - y_test (pd.Series): Testing target
+        - X_train (pl.DataFrame): Training data
+        - X_test (pl.DataFrame): Testing data
+        - y_train (pl.Series): Training target
+        - y_test (pl.Series): Testing target
 
     """
 
-    # Transform to pandas dataframe and drop nulls
-    pandas_df = df.to_pandas()
+    # Split by row order, not shuffled, since this is time series data
+    n_test = math.ceil(df.height * test_size)
+    n_train = df.height - n_test
 
-    # Filter predictor columns and reshape to 1D array
-    X = pandas_df.drop(columns=target)
+    train_df = df.head(n_train)
+    test_df = df.tail(n_test)
 
-    # Filter target column
-    y = pandas_df[target]
+    # Filter predictor columns and target column
+    X_train = train_df.drop(target)
+    y_train = train_df[target]
+    X_test = test_df.drop(target)
+    y_test = test_df[target]
 
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = base_train_test_split(
-        X,
-        y,
-        random_state=42,  # Set random state for reproducibility
-        shuffle=False,  # Do not shuffle the data as is time series data
-        test_size=test_size,
-    )
-
-    # Return the split data in a tuple
     return X_train, X_test, y_train, y_test
