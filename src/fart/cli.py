@@ -61,18 +61,22 @@ def download(
 
 @app.command()
 def train(
-    data_dir: Optional[str] = typer.Option(
-        None,
-        help="Folder to load candle data from (defaults to system cache directory).",
-    ),
-    market: Optional[str] = typer.Option(
-        None,
-        help="Market to train on (e.g., 'BTC-EUR', 'BTC-USDC').",
-    ),
-    interval: Optional[str] = typer.Option(
-        None,
-        help="Data interval (e.g., '1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '1W', '1M').",
-    ),
+    data_dir: Annotated[
+        Optional[str],
+        typer.Option(
+            help="Folder to load candle data from (defaults to system cache directory)."
+        ),
+    ] = None,
+    market: Annotated[
+        Optional[str],
+        typer.Option(help="Market to train on (e.g., 'BTC-EUR', 'BTC-USDC')."),
+    ] = None,
+    interval: Annotated[
+        Optional[str],
+        typer.Option(
+            help="Data interval (e.g., '1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '1W', '1M')."
+        ),
+    ] = None,
 ) -> None:
     arguments = {
         "data_dir": data_dir,
