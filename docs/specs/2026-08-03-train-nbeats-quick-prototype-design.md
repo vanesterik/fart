@@ -1,6 +1,6 @@
 # Train N-BEATS on a Quick-Prototype Data Slice — Design
 
-**Date:** 2026-08-03
+**Date:** 2026-08-03 
 **Status:** Approved
 **Source:** [GitHub issue #5](https://github.com/vanesterik/fart/issues/5), part of [Epic #1: N-BEATS Signal Model](https://github.com/vanesterik/fart/issues/1)
 **Related PRD:** `docs/product/part-a-signal-generation-refactor-prd.md` (Story 2, scoped down to the epic's "quick-prototype" tiny act of discovery)
@@ -31,6 +31,8 @@ Classic N-BEATS is univariate — it forecasts a series from a lookback window o
 ### Magnitude: percent return, not raw price
 
 `magnitude` = `(next_close - current_close) / current_close`, not a raw predicted price. BTC's price in this dataset spans roughly €3.4k (2019) to €55k (2026) — a return target is scale-invariant across that range and directly matches the PRD's framing of "trade magnitude" as the reason for moving off classification. `train_test_split()` itself is unmodified and still returns raw Close values as `y`; the return transform happens after the split, in the windowing step.
+
+Expressing the prediction as a return is also what makes it directly comparable to trading cost. Bitvavo's base fee tier (€0–€100k 30-day volume, the realistic tier for this solo project) is 0.15% maker / 0.25% taker — so a round-trip trade (entry + exit) costs roughly **0.3%–0.5%** before slippage. A magnitude prediction below that floor isn't worth trading on even at full confidence. Applying this floor as an actual trade/no-trade decision rule is Part B's job (not this story) — noted here only as the concrete number motivating why the model's output must be a cost-comparable return rather than a raw price.
 
 ### Confidence: second output head via heteroscedastic regression
 
