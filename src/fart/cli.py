@@ -11,12 +11,17 @@ from loguru import logger
 from fart.downloader import Downloader
 from fart.model import train_model
 
-
 app = typer.Typer(no_args_is_help=True)
 
+LOG_FORMAT = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+    "<level>{level: <8}</level> | "
+    "<level>{message}</level>"
+)
+
 logger.remove()
-logger.add(sys.stderr, level="INFO")
-logger.add("logs/cli.log", rotation="1 MB", level="INFO")
+logger.add(sys.stderr, level="INFO", format=LOG_FORMAT)
+logger.add("logs/cli.log", rotation="1 MB", level="INFO", format=LOG_FORMAT)
 
 load_dotenv(find_dotenv())
 
