@@ -53,11 +53,13 @@ Filenames get a UTC datetime prefix instead of overwriting on every run. New `fa
 def get_model_filepath(
     artifacts_dir: Path, market: str, interval: str, timestamp: datetime
 ) -> Path:
-    """artifacts_dir / f'{timestamp:%Y%m%dT%H%M%SZ}-{market}-{interval}-nbeats.pt'"""
+    """artifacts_dir / f'{timestamp:%Y%m%dT%H%M%S%fZ}-{market}-{interval}-nbeats.pt'"""
 
 def get_latest_model_filepath(artifacts_dir: Path, market: str, interval: str) -> Path:
     """Most recent artifact for a market/interval, by filename (not mtime)."""
 ```
+
+The prefix uses microsecond resolution (`%f`), not just seconds — verified empirically while writing the implementation plan: two `train()` calls in quick succession (e.g. two runs in the same test) can land in the same second, and second-resolution timestamps silently collided, with the second run overwriting the first. Microsecond resolution avoids this for any realistic training run duration.
 
 The prefix (not suffix) position means a plain `ls` sorts artifacts chronologically. `get_latest_model_filepath` globs `*-{market}-{interval}-nbeats.pt` and picks the max by filename — filename rather than filesystem mtime, since the timestamp is embedded in the name and is more robust than mtime against copies/checkouts. It raises `ValueError` on no matches, via an unguarded `max()` — same behavior as the existing sibling `get_last_modified_data_file`, matching that function's established style rather than introducing a different error-handling convention.
 
