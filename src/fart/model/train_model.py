@@ -6,6 +6,7 @@ import numpy as np
 import polars as pl
 import torch
 from loguru import logger
+from tabulate import tabulate
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -123,11 +124,15 @@ def train(
     magnitudes = torch.cat(mu_batches).numpy()
     confidences = (1 / (1 + torch.cat(log_sigma_batches).exp())).numpy()
 
-    logger.info(
-        f"N-BEATS: {len(magnitudes)} test candles, device={device}, "
-        f"magnitude mean={magnitudes.mean():.5f} std={magnitudes.std():.5f}, "
-        f"confidence mean={confidences.mean():.5f}"
-    )
+    results = {
+        "test candles": len(magnitudes),
+        "device": str(device),
+        "magnitude mean": f"{magnitudes.mean():.5f}",
+        "magnitude std": f"{magnitudes.std():.5f}",
+        "confidence mean": f"{confidences.mean():.5f}",
+    }
+    table = tabulate(results.items())
+    logger.info(f"\n\nN-BEATS Trainer\n\n{table}\n")
 
     timestamp = datetime.now(timezone.utc)
     model_path = get_model_filepath(artifacts_dir, market, interval, timestamp)
