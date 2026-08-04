@@ -67,6 +67,11 @@ packages = ["src/fart"]
 include = ["src"]
 exclude = ["tests"]
 typeCheckingMode = "strict"
+stubPath = "typings"
+
+
+[tool.ty.environment]
+extra-paths = ["typings"]
 
 
 [tool.pytest.ini_options]

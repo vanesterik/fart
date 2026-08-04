@@ -12,7 +12,7 @@ class NBeatsBlock(nn.Module):
     """One generic N-BEATS block: FC stack -> backcast + forecast(width=2)."""
 
     def __init__(self, lookback: int, hidden_width: int) -> None:
-        super().__init__()  # pyright: ignore[reportUnknownMemberType]
+        super().__init__()  # pyright: ignore[reportUnknownMemberType] -- nn.Module.__init__ takes untyped *args/**kwargs upstream
         self.fc = nn.Sequential(
             nn.Linear(lookback, hidden_width),
             nn.ReLU(),
@@ -37,7 +37,7 @@ class NBeatsNet(nn.Module):
     """Stack of NBeatsBlocks, doubly-residual, generic (non-interpretable) basis."""
 
     def __init__(self, config: NBeatsConfig) -> None:
-        super().__init__()  # pyright: ignore[reportUnknownMemberType]
+        super().__init__()  # pyright: ignore[reportUnknownMemberType] -- nn.Module.__init__ takes untyped *args/**kwargs upstream
         num_blocks = config.num_stacks * config.num_blocks_per_stack
         self.blocks = nn.ModuleList(
             [

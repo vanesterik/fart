@@ -81,7 +81,7 @@ def train(
         mu, log_sigma = output.unbind(-1)
         loss = loss_fn(mu, y_train_windows, log_sigma.exp() ** 2)
         loss.backward()
-        optimizer.step()  # pyright: ignore[reportUnknownMemberType]
+        optimizer.step()  # pyright: ignore[reportUnknownMemberType] -- Adam.step is untyped upstream (torch/optim/adam.py)
 
     model.eval()
     with torch.no_grad():

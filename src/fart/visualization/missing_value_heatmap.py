@@ -5,7 +5,7 @@ import polars as pl
 import seaborn as sns
 from matplotlib.colors import ListedColormap
 
-from fart.constants import IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN, TIMESTAMP
+from fart.constants import HONOLULU_BLUE, TIMESTAMP, YELLOW_SEA
 
 
 def plot_missing_value_heatmap(df: pl.DataFrame, title: Optional[str] = None) -> None:
@@ -24,12 +24,12 @@ def plot_missing_value_heatmap(df: pl.DataFrame, title: Optional[str] = None) ->
     df = fill_missing_candles(df)
     null_mask = df.select(pl.all().is_null()).to_numpy().T
 
-    _, ax = plt.subplots(  # pyright: ignore[reportUnknownMemberType]
+    _, ax = plt.subplots(  # pyright: ignore[reportUnknownMemberType] -- pyplot.subplots' **fig_kw is untyped upstream
         figsize=(16, 4), constrained_layout=True
     )
-    sns.heatmap(  # pyright: ignore[reportUnknownMemberType]
+    sns.heatmap(  # pyright: ignore[reportUnknownMemberType] -- seaborn.heatmap's **kwargs is untyped upstream
         null_mask,
-        cmap=ListedColormap([PERSIAN_GREEN_MAIN, IMPERIAL_RED_MAIN]),
+        cmap=ListedColormap([HONOLULU_BLUE, YELLOW_SEA]),
         cbar=False,
         linewidths=0,
         xticklabels=False,
@@ -39,9 +39,11 @@ def plot_missing_value_heatmap(df: pl.DataFrame, title: Optional[str] = None) ->
         ax=ax,
     )
     if title:
-        ax.set_title(title)  # pyright: ignore[reportUnknownMemberType]
+        ax.set_title(  # pyright: ignore[reportUnknownMemberType] -- Axes.set_title's **kwargs is untyped upstream
+            title
+        )
 
-    plt.show()  # pyright: ignore[reportUnknownMemberType]
+    plt.show()  # pyright: ignore[reportUnknownMemberType] -- pyplot.show is untyped upstream
 
 
 def fill_missing_candles(df: pl.DataFrame) -> pl.DataFrame:
@@ -71,16 +73,19 @@ def fill_missing_candles(df: pl.DataFrame) -> pl.DataFrame:
     # smallest one -- a single out-of-order or duplicate row would
     # otherwise corrupt detection via a negative or zero minimum.
     interval = df[TIMESTAMP].diff().drop_nulls().mode().min()
-    if interval is None or interval <= 0:  # type: ignore
+    if not isinstance(interval, int) or interval <= 0:
         return df
 
     start = df[TIMESTAMP].min()
     end = df[TIMESTAMP].max()
+    if not isinstance(start, int) or not isinstance(end, int):
+        return df
+
     full_timestamps = pl.DataFrame(
         {
-            TIMESTAMP: pl.int_range(  # type: ignore
+            TIMESTAMP: pl.int_range(
                 start,
-                end + interval,  # type: ignore
+                end + interval,
                 step=interval,
                 eager=True,
             )

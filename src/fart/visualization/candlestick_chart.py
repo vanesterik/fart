@@ -1,6 +1,6 @@
 from typing import Any
 
-import mplfinance as mpf  # pyright: ignore[reportMissingTypeStubs]
+import mplfinance as mpf
 import polars as pl
 
 from fart.constants import (
@@ -49,8 +49,10 @@ def plot_candlestick_chart(
     data_window = _slice_data_window(df, timestamp, window_size)
     indicators = _build_indicator_plots(data_window)
 
-    candles = data_window.to_pandas().set_index(DATETIME)
-    mpf.plot(  # pyright: ignore[reportUnknownMemberType]
+    candles = data_window.to_pandas().set_index(  # pyright: ignore[reportUnknownMemberType] -- DataFrame.set_index's `keys` param is untyped upstream
+        DATETIME
+    )
+    mpf.plot(
         candles,
         addplot=indicators,
         figsize=(24, 13.5),
@@ -89,7 +91,7 @@ def _build_indicator_plots(df: pl.DataFrame) -> list[dict[str, Any]]:
 
 def _bbands_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
     return [
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             df[BBANDS_MIDDLE].to_numpy(),
             color=HONOLULU_BLUE,
             fill_between=dict(
@@ -101,13 +103,13 @@ def _bbands_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
             label=BBANDS,
             panel=0,
         ),
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             df[BBANDS_UPPER].to_numpy(),
             alpha=CONTOUR_LINE_ALPHA,
             color=HONOLULU_BLUE,
             panel=0,
         ),
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             df[BBANDS_LOWER].to_numpy(),
             alpha=CONTOUR_LINE_ALPHA,
             color=HONOLULU_BLUE,
@@ -120,7 +122,7 @@ def _ema_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
     ema_fast = df[EMA_FAST].to_numpy()
     ema_slow = df[EMA_SLOW].to_numpy()
     return [
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             ema_fast,
             alpha=CONTOUR_LINE_ALPHA,
             color=HONOLULU_BLUE,
@@ -143,7 +145,7 @@ def _ema_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
             label=EMA_FAST,
             panel=0,
         ),
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             ema_slow,
             alpha=CONTOUR_LINE_ALPHA,
             color=HONOLULU_BLUE,
@@ -155,17 +157,17 @@ def _ema_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
 
 def _macd_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
     return [
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             df[MACD].to_numpy(),
             color=YELLOW_SEA,
             panel=1,
         ),
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             df[MACD_SIGNAL].to_numpy(),
             color=HONOLULU_BLUE,
             panel=1,
         ),
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             df[MACD_HISTOGRAM].to_numpy(),
             color=_macd_histogram_colors(df),
             ylabel=MACD,
@@ -181,7 +183,7 @@ def _rsi_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
     rsi_lower_bound = [config.rsi.oversold for _ in range(len(df))]
 
     return [
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             df[RSI].to_numpy(),
             color=IMPERIAL_RED_MAIN,
             fill_between=dict(
@@ -193,14 +195,14 @@ def _rsi_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
             ylabel=RSI,
             panel=2,
         ),
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             rsi_upper_bound,
             alpha=CONTOUR_LINE_ALPHA,
             color=IMPERIAL_RED_MAIN,
             panel=2,
             secondary_y=False,
         ),
-        mpf.make_addplot(  # pyright: ignore[reportUnknownMemberType]
+        mpf.make_addplot(
             rsi_lower_bound,
             alpha=CONTOUR_LINE_ALPHA,
             color=IMPERIAL_RED_MAIN,
