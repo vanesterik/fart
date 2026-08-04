@@ -1,8 +1,9 @@
 import sys
 from os import getenv
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 
+import torch
 import typer
 from dotenv import find_dotenv, load_dotenv
 from loguru import logger
@@ -10,12 +11,17 @@ from loguru import logger
 from fart.downloader import Downloader
 from fart.model import train_model
 
-
 app = typer.Typer(no_args_is_help=True)
 
+LOG_FORMAT = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+    "<level>{level: <8}</level> | "
+    "<level>{message}</level>"
+)
+
 logger.remove()
-logger.add(sys.stderr, level="INFO")
-logger.add("logs/cli.log", rotation="1 MB", level="INFO")
+logger.add(sys.stderr, level="INFO", format=LOG_FORMAT)
+logger.add("logs/cli.log", rotation="1 MB", level="INFO", format=LOG_FORMAT)
 
 load_dotenv(find_dotenv())
 
@@ -70,14 +76,29 @@ def train(
         ),
     ] = "1d",
     months: Annotated[
-        int,
+        Optional[int],
         typer.Option(
-            help="How many months of the most recent candle history to train on."
+            help="How many months of the most recent candle history to train on. Trains on the complete cached history if not set."
         ),
-    ] = 6,
+    ] = None,
+    artifacts_dir: Annotated[
+        str,
+        typer.Option(help="Folder to save the trained model artifact to."),
+    ] = "artifacts",
+    device: Annotated[
+        Optional[str],
+        typer.Option(
+            help="Torch device to train on ('cpu', 'mps'). Auto-detected if not set."
+        ),
+    ] = None,
 ) -> None:
     train_model.train(
-        data_dir=Path(data_dir), market=market, interval=interval, months=months
+        data_dir=Path(data_dir),
+        market=market,
+        interval=interval,
+        artifacts_dir=Path(artifacts_dir),
+        months=months,
+        device=torch.device(device) if device else None,
     )
 
 

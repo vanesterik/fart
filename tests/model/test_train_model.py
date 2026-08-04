@@ -1,11 +1,16 @@
 from pathlib import Path
 
 import numpy as np
+import polars as pl
 import pytest
+import torch
 from loguru import logger
 
 from fart.model.nbeats_config import NBeatsConfig
+from fart.model.nbeats_dataset import build_return_windows
+from fart.model.nbeats_persistence import load_model
 from fart.model.train_model import prepare_training_data, train
+from fart.utils import get_latest_model_filepath
 
 CSV_HEADER = "Timestamp,Open,High,Low,Close,Volume\n"
 
@@ -108,7 +113,9 @@ def test_train_logs_prepared_shapes(tmp_path: Path) -> None:
             data_dir=tmp_path,
             market="BTC-EUR",
             interval="1d",
+            artifacts_dir=tmp_path / "artifacts",
             config=NBeatsConfig(epochs=2, num_stacks=1, num_blocks_per_stack=1),
+            device=torch.device("cpu"),
         )
     finally:
         logger.remove(sink_id)
@@ -127,7 +134,9 @@ def test_train_fits_nbeats_and_returns_magnitude_confidence(tmp_path: Path) -> N
             data_dir=tmp_path,
             market="BTC-EUR",
             interval="1d",
+            artifacts_dir=tmp_path / "artifacts",
             config=NBeatsConfig(epochs=2, num_stacks=1, num_blocks_per_stack=1),
+            device=torch.device("cpu"),
         )
     finally:
         logger.remove(sink_id)
@@ -138,3 +147,86 @@ def test_train_fits_nbeats_and_returns_magnitude_confidence(tmp_path: Path) -> N
     assert magnitudes.shape[0] > 0
     assert np.all(confidences > 0) and np.all(confidences < 1)
     assert any("X_train" in message for message in messages)
+
+
+def test_train_saves_versioned_artifact_each_run(tmp_path: Path) -> None:
+    _write_candle_csv(tmp_path / "BTC-EUR-1d.csv", num_rows=200)
+    artifacts_dir = tmp_path / "artifacts"
+    config = NBeatsConfig(epochs=1, num_stacks=1, num_blocks_per_stack=1, batch_size=8)
+
+    train(
+        data_dir=tmp_path,
+        market="BTC-EUR",
+        interval="1d",
+        artifacts_dir=artifacts_dir,
+        config=config,
+        device=torch.device("cpu"),
+    )
+    train(
+        data_dir=tmp_path,
+        market="BTC-EUR",
+        interval="1d",
+        artifacts_dir=artifacts_dir,
+        config=config,
+        device=torch.device("cpu"),
+    )
+
+    saved = sorted(artifacts_dir.glob("*-BTC-EUR-1d-nbeats.pt"))
+    assert len(saved) == 2
+    assert saved[0] != saved[1]
+
+
+def test_train_minibatches_with_small_batch_size(tmp_path: Path) -> None:
+    _write_candle_csv(tmp_path / "BTC-EUR-1d.csv", num_rows=200)
+
+    magnitudes, confidences = train(
+        data_dir=tmp_path,
+        market="BTC-EUR",
+        interval="1d",
+        artifacts_dir=tmp_path / "artifacts",
+        config=NBeatsConfig(
+            epochs=1, num_stacks=1, num_blocks_per_stack=1, batch_size=4
+        ),
+        device=torch.device("cpu"),
+    )
+
+    assert magnitudes.shape[0] > 0
+    assert np.all(np.isfinite(magnitudes))
+    assert np.all(confidences > 0) and np.all(confidences < 1)
+
+
+def test_train_saved_artifact_reproduces_output(tmp_path: Path) -> None:
+    _write_candle_csv(tmp_path / "BTC-EUR-1d.csv", num_rows=200)
+    artifacts_dir = tmp_path / "artifacts"
+    config = NBeatsConfig(epochs=1, num_stacks=1, num_blocks_per_stack=1, batch_size=8)
+
+    magnitudes, confidences = train(
+        data_dir=tmp_path,
+        market="BTC-EUR",
+        interval="1d",
+        artifacts_dir=artifacts_dir,
+        config=config,
+        device=torch.device("cpu"),
+    )
+
+    artifact_path = get_latest_model_filepath(artifacts_dir, "BTC-EUR", "1d")
+    loaded_model = load_model(artifact_path)
+
+    X_train, X_test, y_train, y_test = prepare_training_data(
+        data_dir=tmp_path, market="BTC-EUR", interval="1d"
+    )
+    n_train = y_train.shape[0]
+    close_prices = pl.concat([y_train, y_test])
+    X_all, y_all = build_return_windows(close_prices, config.lookback)
+    n_train_windows = max(0, n_train - config.lookback - 1)
+    X_test_windows = X_all[n_train_windows:]
+
+    loaded_model.eval()
+    with torch.no_grad():
+        output = loaded_model(X_test_windows)
+    mu, log_sigma = output.unbind(-1)
+    loaded_magnitudes = mu.numpy()
+    loaded_confidences = (1 / (1 + log_sigma.exp())).numpy()
+
+    np.testing.assert_allclose(loaded_magnitudes, magnitudes, rtol=1e-5, atol=1e-6)
+    np.testing.assert_allclose(loaded_confidences, confidences, rtol=1e-5, atol=1e-6)
