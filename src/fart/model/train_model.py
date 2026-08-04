@@ -65,10 +65,14 @@ def train(
     X_train, X_test, y_train, y_test = prepare_training_data(
         data_dir, market, interval, months
     )
-    logger.info(
-        f"Prepared training data: X_train={X_train.shape}, "
-        f"X_test={X_test.shape}, y_train={y_train.shape}, y_test={y_test.shape}"
-    )
+    shapes = {
+        "X_train": X_train.shape,
+        "X_test": X_test.shape,
+        "y_train": y_train.shape,
+        "y_test": y_test.shape,
+    }
+    table = tabulate(shapes.items())
+    logger.info(f"\n\n{table}\n")
 
     n_train = y_train.shape[0]
     close_prices = pl.concat([y_train, y_test])
@@ -137,6 +141,6 @@ def train(
     timestamp = datetime.now(timezone.utc)
     model_path = get_model_filepath(artifacts_dir, market, interval, timestamp)
     save_model(model.cpu(), config, model_path)
-    logger.info(f"Saved model artifact to {model_path}")
+    logger.info(f"Saved model to {model_path}")
 
     return magnitudes, confidences
