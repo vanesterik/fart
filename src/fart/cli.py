@@ -69,8 +69,16 @@ def train(
             help="Data interval (e.g., '1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '1W', '1M')."
         ),
     ] = "1d",
+    months: Annotated[
+        int,
+        typer.Option(
+            help="How many months of the most recent candle history to train on."
+        ),
+    ] = 6,
 ) -> None:
-    train_model.train(data_dir=Path(data_dir), market=market, interval=interval)
+    train_model.train(
+        data_dir=Path(data_dir), market=market, interval=interval, months=months
+    )
 
 
 if __name__ == "__main__":
