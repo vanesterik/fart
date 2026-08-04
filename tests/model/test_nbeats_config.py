@@ -18,3 +18,15 @@ def test_nbeats_config_overrides() -> None:
     assert config.epochs == 2
     assert config.num_stacks == 1
     assert config.num_blocks_per_stack == 1
+
+
+def test_nbeats_config_default_batch_size() -> None:
+    config = NBeatsConfig()
+
+    assert config.batch_size == 128
+
+
+def test_nbeats_config_batch_size_override() -> None:
+    config = NBeatsConfig(batch_size=4)
+
+    assert config.batch_size == 4

@@ -13,6 +13,7 @@ class NBeatsConfig(BaseModel):
     - hidden_width (int): Width of each block's hidden fully-connected layers.
     - epochs (int): Number of training epochs.
     - learning_rate (float): Adam optimizer learning rate.
+    - batch_size (int): Minibatch size for training and inference.
 
     """
 
@@ -22,3 +23,4 @@ class NBeatsConfig(BaseModel):
     hidden_width: int = 64
     epochs: int = 50
     learning_rate: float = 1e-3
+    batch_size: int = 128
