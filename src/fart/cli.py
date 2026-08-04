@@ -71,18 +71,11 @@ def train(
         ),
     ] = "1d",
     months: Annotated[
-        int,
+        Optional[int],
         typer.Option(
-            help="How many months of the most recent candle history to train on. Ignored if --full is set."
+            help="How many months of the most recent candle history to train on. Trains on the complete cached history if not set."
         ),
-    ] = 6,
-    full: Annotated[
-        bool,
-        typer.Option(
-            "--full",
-            help="Train on the complete cached history instead of the recent --months slice.",
-        ),
-    ] = False,
+    ] = None,
     artifacts_dir: Annotated[
         str,
         typer.Option(help="Folder to save the trained model artifact to."),
@@ -99,7 +92,7 @@ def train(
         market=market,
         interval=interval,
         artifacts_dir=Path(artifacts_dir),
-        months=None if full else months,
+        months=months,
         device=torch.device(device) if device else None,
     )
 
