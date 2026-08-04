@@ -45,7 +45,7 @@ def load_model(path: Path) -> NBeatsNet:
 
     """
     checkpoint = cast(
-        Dict[str, Any], torch.load(path, map_location="cpu", weights_only=False)
+        Dict[str, Any], torch.load(path, map_location="cpu", weights_only=True)
     )
     config = NBeatsConfig(**checkpoint["config"])
     model = NBeatsNet(config)

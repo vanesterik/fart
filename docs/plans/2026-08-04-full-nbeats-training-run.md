@@ -14,7 +14,7 @@
 - `get_device()` checks `torch.backends.mps.is_available()` only, never `torch.cuda.is_available()` — `torch` is pinned to the CPU-only wheel index (`pyproject.toml`) on Linux/Windows, so CUDA can never be available in this project; a CUDA branch would be permanently-dead code (spec decision).
 - Model artifact filenames use a **microsecond**-resolution UTC timestamp prefix: `timestamp.strftime("%Y%m%dT%H%M%S%fZ")`. Second resolution was the original spec's plan, but it was found to collide empirically while verifying this plan — two `train()` calls within the same second silently overwrote each other. Do not regress to second resolution.
 - `get_latest_model_filepath()` picks the max by **filename**, not filesystem mtime (mtime can be altered by copies/checkouts; the embedded timestamp can't) — matches the existing sibling `get_last_modified_data_file()`'s established style of an unguarded `max()` that raises `ValueError` on an empty result, rather than introducing a different error-handling convention (spec decision).
-- `load_model()` always loads with `map_location="cpu"` — a saved artifact must stay hardware-portable regardless of what device trained it; callers move it to a device themselves if needed (spec decision). It also passes `weights_only=False` to `torch.load()` explicitly — verified necessary in this plan's research: the checkpoint bundles a plain Python dict (`config.model_dump()`) alongside the tensor `state_dict`, and being explicit here is the safer, verified choice rather than relying on `torch.load`'s changing defaults across versions.
+- `load_model()` always loads with `map_location="cpu"` — a saved artifact must stay hardware-portable regardless of what device trained it; callers move it to a device themselves if needed (spec decision). It also passes `weights_only=True` to `torch.load()` explicitly — verified in this plan's research to work correctly: the checkpoint bundles a plain Python dict (`config.model_dump()`) alongside the tensor `state_dict`, and that dict contains only primitives (`int`/`float`), which torch's restricted unpickler explicitly permits under `weights_only=True`. Using `True` avoids running arbitrary pickle code on load, which matters once artifacts may be loaded on a machine other than the one that trained them.
 - Before saving, the model is moved back to CPU (`model.cpu()`) so the saved `state_dict` always contains CPU tensors, consistent with `load_model()`'s CPU-only loading (spec decision).
 - `artifacts_dir` is a required parameter on `train()` (no default) — same convention as the existing `data_dir`/`market`/`interval` params; only the CLI supplies a default (`"artifacts"`).
 - `pyproject.toml`'s `[tool.pyright]` runs in strict mode over `src/` only (`tests/` excluded) — every task that touches `src/` must pass `uv run pyright` with 0 errors before committing. Verified in this plan's research: with torch 2.9.1, `DataLoader`/`TensorDataset`, `torch.save`/`torch.load`, `model.to(device)`, and `tensor.cpu()` all type-check cleanly under this repo's strict config with **no new** `# pyright: ignore` needed — the only pre-existing ignore in `train_model.py` (on `optimizer.step()`) is untouched.
@@ -477,7 +477,7 @@ def load_model(path: Path) -> NBeatsNet:
 
     """
     checkpoint = cast(
-        Dict[str, Any], torch.load(path, map_location="cpu", weights_only=False)
+        Dict[str, Any], torch.load(path, map_location="cpu", weights_only=True)
     )
     config = NBeatsConfig(**checkpoint["config"])
     model = NBeatsNet(config)
