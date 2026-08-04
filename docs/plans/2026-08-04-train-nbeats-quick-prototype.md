@@ -22,6 +22,7 @@
 - `torch`, `numpy`, `pydantic`, and `polars` are already declared dependencies (`pyproject.toml`) — no new dependencies are needed for this plan, no `uv add` required.
 - `pyproject.toml`'s `[tool.pyright]` runs in strict mode over `src/` only (`tests/` excluded) — every task that touches `src/` must pass `uv run pyright` with 0 errors before committing.
 - Torch's type stubs are only partially typed: under this repo's strict pyright config, `nn.Module.__init__` (via `super().__init__()` in any `nn.Module` subclass) and `Optimizer.step()` both raise `reportUnknownMemberType`. This was verified directly against this repo's pyright/torch versions. Both call sites need a `# pyright: ignore[reportUnknownMemberType]` comment — see Task 3 and Task 5 below for the exact lines. No other torch call in this plan (`nn.Linear`, `nn.Sequential`, `nn.ModuleList`, `nn.ReLU`, `torch.zeros`, `torch.tensor`, `GaussianNLLLoss`, `.backward()`, `.numpy()`) needs one.
+- `pl.Series.max()` returns `PythonLiteral | None` under Polars' strict-typed stubs (a Series could theoretically be empty), so subtracting an int from it directly fails strict pyright. Both `prepare_training_data` code blocks below narrow it first: `max_timestamp = df[TIMESTAMP].max(); assert isinstance(max_timestamp, int)` before using it in `cutoff = max_timestamp - months * 30 * 24 * 60 * 60 * 1000`.
 - Never reference "superpowers" in code, file paths, or directory structure (CLAUDE.md).
 - `pyproject.toml`'s `[tool.pytest.ini_options] addopts` includes `--cov-fail-under=80` repo-wide. Scoped test runs pointing at one test file may still show a non-zero process exit due to that coverage gate even when every printed test result is `PASSED`. Treat the printed per-test PASSED/FAILED line as ground truth, not the process exit code.
 
@@ -299,10 +300,19 @@ def test_nbeats_net_training_step_produces_finite_gradients() -> None:
     loss = loss_fn(mu, target, log_sigma.exp() ** 2)
     loss.backward()
 
-    for param in model.parameters():
-        assert param.grad is not None
-        assert torch.isfinite(param.grad).all()
+    # The last block's backcast residual is never consumed (no further block
+    # reads it), so its backcast_layer weights are structurally outside the
+    # autograd graph — that's the "backcast is architectural only" property,
+    # not a bug. Every other parameter must still get a finite gradient.
+    last_block_backcast_prefix = f"blocks.{len(model.blocks) - 1}.backcast_layer"
+    for name, param in model.named_parameters():
+        if name.startswith(last_block_backcast_prefix):
+            continue
+        assert param.grad is not None, name
+        assert torch.isfinite(param.grad).all(), name
 ```
+
+(Discovered during implementation: a naive "every parameter gets a gradient" assertion fails here — not from a bug, but because the last block's backcast has no downstream consumer, exactly as the spec's "backcast is architectural only" design intends. The assertion above reflects that correctly instead of over-asserting.)
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -468,7 +478,9 @@ def prepare_training_data(
     df = pl.read_csv(filepath)
 
     if months is not None:
-        cutoff = df[TIMESTAMP].max() - months * 30 * 24 * 60 * 60 * 1000
+        max_timestamp = df[TIMESTAMP].max()
+        assert isinstance(max_timestamp, int)
+        cutoff = max_timestamp - months * 30 * 24 * 60 * 60 * 1000
         df = df.filter(pl.col(TIMESTAMP) >= cutoff)
 
     df = calculate_technical_indicators(df)
@@ -624,7 +636,9 @@ def prepare_training_data(
     df = pl.read_csv(filepath)
 
     if months is not None:
-        cutoff = df[TIMESTAMP].max() - months * 30 * 24 * 60 * 60 * 1000
+        max_timestamp = df[TIMESTAMP].max()
+        assert isinstance(max_timestamp, int)
+        cutoff = max_timestamp - months * 30 * 24 * 60 * 60 * 1000
         df = df.filter(pl.col(TIMESTAMP) >= cutoff)
 
     df = calculate_technical_indicators(df)
