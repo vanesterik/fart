@@ -1,7 +1,45 @@
 from pathlib import Path
 
 
+# Get project root directory
+def get_project_root() -> Path:
+    """
+    Get the root directory of the project based on specific file markers - ie.
+    .git, .gitignore, or pyproject.toml.
+
+    Returns
+    -------
+    - Path: Path to the root directory of the project.
+
+    """
+    # Check for common project markers
+    markers = [".git", ".gitignore", "pyproject.toml"]
+    current_dir = Path(__file__).parent
+
+    while current_dir != current_dir.parent:
+        if any((current_dir / marker).exists() for marker in markers):
+            return current_dir
+        current_dir = current_dir.parent
+
+    # If no markers found, return the directory containing this file
+    return Path(__file__).parent.parent
+
+
 def get_candle_filepath(data_dir: Path, market: str, interval: str) -> Path:
+    """
+    Get the file path for a candle data file.
+
+    Parameters
+    ----------
+    - data_dir (Path): Path to the directory containing data files.
+    - market (str): Market name (e.g., 'BTC-USD').
+    - interval (str): Interval for the candle data (e.g., '1m', '5m', '1h').
+
+    Returns
+    -------
+    - Path: Path to the candle data file.
+
+    """
     return data_dir / f"{market}-{interval}.csv"
 
 
