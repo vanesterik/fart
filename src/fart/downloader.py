@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from loguru import logger
-from python_bitvavo_api.bitvavo import Bitvavo  # type: ignore
+from python_bitvavo_api.bitvavo import Bitvavo
 from tabulate import tabulate
 from tqdm import tqdm
 
@@ -45,7 +45,7 @@ class Downloader:
         )
 
         for start, end in tqdm(timestamp_list, desc="Downloading"):
-            candles: List[Candle] = self._client.candles(  # type: ignore
+            candles: List[Candle] = self._client.candles(
                 self._market,
                 self._interval,
                 start=self._convert_timestamp(start),
@@ -57,7 +57,7 @@ class Downloader:
             self._save_candle_data(candle_data, filepath)
 
     def _validate_market(self):
-        markets = self._client.markets()  # type: ignore
+        markets = self._client.markets()
 
         if not any(item["market"] == self._market for item in markets):
             raise ValueError(f"Market '{self._market}' not found in Bitvavo markets")
@@ -102,11 +102,28 @@ class Downloader:
             return data
 
     def _determine_start_timestamp(self, data: List[Candle]) -> int:
-        # Return the timestamp of the last candle in the data, or the Bitvavo
-        # launch timestamp if no data is available. The Bitvavo exchange
-        # launched on March 9, 2019.
+        # Return the timestamp one interval past the last candle in the
+        # data (so the already-cached candle isn't re-fetched and appended
+        # as a duplicate), or the Bitvavo launch timestamp if no data is
+        # available. The Bitvavo exchange launched on March 9, 2019.
         bitvavo_launch_timestamp = 1552089600000  # 2019/03/09
-        return data[-1][0] if data else bitvavo_launch_timestamp
+        if not data:
+            return bitvavo_launch_timestamp
+        return data[-1][0] + self._interval_to_milliseconds(self._interval)
+
+    def _interval_to_milliseconds(self, interval: str) -> int:
+        if interval.endswith("m"):
+            return int(interval[:-1]) * 60_000
+        elif interval.endswith("h"):
+            return int(interval[:-1]) * 3_600_000
+        elif interval.endswith("d"):
+            return int(interval[:-1]) * 86_400_000
+        elif interval.endswith("W"):
+            return int(interval[:-1]) * 604_800_000
+        elif interval.endswith("M"):
+            return int(interval[:-1]) * 30 * 86_400_000
+        else:
+            raise ValueError(f"Invalid interval: {interval}")
 
     def _calculate_timestamp_list(
         self,

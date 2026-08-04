@@ -57,6 +57,47 @@ def test_downloader_unknown_market_raises(
         )
 
 
+@pytest.mark.parametrize(
+    "interval,last_candle_timestamp,expected_start_timestamp",
+    [
+        ("1m", 1_000_000, 1_000_000 + 60_000),
+        ("5m", 1_000_000, 1_000_000 + 5 * 60_000),
+        ("1h", 1_000_000, 1_000_000 + 3_600_000),
+        ("1d", 1_000_000, 1_000_000 + 86_400_000),
+    ],
+)
+@patch("fart.downloader.Bitvavo")
+def test_downloader_resumes_one_interval_past_last_cached_candle(
+    mock_bitvavo: MagicMock,
+    tmp_path: Path,
+    interval: str,
+    last_candle_timestamp: int,
+    expected_start_timestamp: int,
+) -> None:
+    mock_bitvavo.return_value.markets.return_value = [{"market": "BTC-EUR"}]
+    downloader = Downloader(
+        data_dir=tmp_path,
+        market="BTC-EUR",
+        interval=interval,
+        api_key="test-api-key",
+        api_secret="test-api-secret",
+    )
+
+    last_candle = (last_candle_timestamp, 1.0, 1.0, 1.0, 1.0, 1.0)
+    start_timestamp = downloader._determine_start_timestamp([last_candle])
+
+    assert start_timestamp == expected_start_timestamp
+
+
+@patch("fart.downloader.Bitvavo")
+def test_downloader_resumes_from_launch_timestamp_without_cached_data(
+    mock_bitvavo: MagicMock, tmp_path: Path
+) -> None:
+    downloader = _make_downloader(tmp_path, mock_bitvavo, market="BTC-EUR")
+
+    assert downloader._determine_start_timestamp([]) == 1552089600000
+
+
 @patch("fart.downloader.Bitvavo")
 def test_downloader_logs_configuration_without_leaking_secrets(
     mock_bitvavo: MagicMock, tmp_path: Path
