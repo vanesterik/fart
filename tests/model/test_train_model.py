@@ -45,6 +45,24 @@ def test_prepare_training_data_missing_csv_raises(tmp_path: Path) -> None:
         prepare_training_data(data_dir=tmp_path, market="BTC-EUR", interval="1d")
 
 
+def test_prepare_training_data_filters_to_recent_months(tmp_path: Path) -> None:
+    _write_candle_csv(tmp_path / "BTC-EUR-1d.csv", num_rows=400)
+
+    X_train, X_test, y_train, y_test = prepare_training_data(
+        data_dir=tmp_path, market="BTC-EUR", interval="1d", months=6
+    )
+    total_rows_filtered = X_train.shape[0] + X_test.shape[0]
+
+    X_train_full, X_test_full, y_train_full, y_test_full = prepare_training_data(
+        data_dir=tmp_path, market="BTC-EUR", interval="1d", months=None
+    )
+    total_rows_full = X_train_full.shape[0] + X_test_full.shape[0]
+
+    assert total_rows_filtered < total_rows_full
+    assert 100 <= total_rows_filtered <= 181
+    assert total_rows_full > 300
+
+
 def test_train_logs_prepared_shapes(tmp_path: Path) -> None:
     _write_candle_csv(tmp_path / "BTC-EUR-1d.csv")
 
