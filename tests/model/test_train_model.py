@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import torch
 from loguru import logger
 
 from fart.model.nbeats_config import NBeatsConfig
@@ -108,7 +109,9 @@ def test_train_logs_prepared_shapes(tmp_path: Path) -> None:
             data_dir=tmp_path,
             market="BTC-EUR",
             interval="1d",
+            artifacts_dir=tmp_path / "artifacts",
             config=NBeatsConfig(epochs=2, num_stacks=1, num_blocks_per_stack=1),
+            device=torch.device("cpu"),
         )
     finally:
         logger.remove(sink_id)
@@ -127,7 +130,9 @@ def test_train_fits_nbeats_and_returns_magnitude_confidence(tmp_path: Path) -> N
             data_dir=tmp_path,
             market="BTC-EUR",
             interval="1d",
+            artifacts_dir=tmp_path / "artifacts",
             config=NBeatsConfig(epochs=2, num_stacks=1, num_blocks_per_stack=1),
+            device=torch.device("cpu"),
         )
     finally:
         logger.remove(sink_id)
@@ -138,3 +143,49 @@ def test_train_fits_nbeats_and_returns_magnitude_confidence(tmp_path: Path) -> N
     assert magnitudes.shape[0] > 0
     assert np.all(confidences > 0) and np.all(confidences < 1)
     assert any("X_train" in message for message in messages)
+
+
+def test_train_saves_versioned_artifact_each_run(tmp_path: Path) -> None:
+    _write_candle_csv(tmp_path / "BTC-EUR-1d.csv", num_rows=200)
+    artifacts_dir = tmp_path / "artifacts"
+    config = NBeatsConfig(epochs=1, num_stacks=1, num_blocks_per_stack=1, batch_size=8)
+
+    train(
+        data_dir=tmp_path,
+        market="BTC-EUR",
+        interval="1d",
+        artifacts_dir=artifacts_dir,
+        config=config,
+        device=torch.device("cpu"),
+    )
+    train(
+        data_dir=tmp_path,
+        market="BTC-EUR",
+        interval="1d",
+        artifacts_dir=artifacts_dir,
+        config=config,
+        device=torch.device("cpu"),
+    )
+
+    saved = sorted(artifacts_dir.glob("*-BTC-EUR-1d-nbeats.pt"))
+    assert len(saved) == 2
+    assert saved[0] != saved[1]
+
+
+def test_train_minibatches_with_small_batch_size(tmp_path: Path) -> None:
+    _write_candle_csv(tmp_path / "BTC-EUR-1d.csv", num_rows=200)
+
+    magnitudes, confidences = train(
+        data_dir=tmp_path,
+        market="BTC-EUR",
+        interval="1d",
+        artifacts_dir=tmp_path / "artifacts",
+        config=NBeatsConfig(
+            epochs=1, num_stacks=1, num_blocks_per_stack=1, batch_size=4
+        ),
+        device=torch.device("cpu"),
+    )
+
+    assert magnitudes.shape[0] > 0
+    assert np.all(np.isfinite(magnitudes))
+    assert np.all(confidences > 0) and np.all(confidences < 1)

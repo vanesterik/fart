@@ -1,20 +1,24 @@
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import polars as pl
 import torch
 from loguru import logger
-from torch import nn
+from torch import Tensor, nn
+from torch.utils.data import DataLoader, TensorDataset
 
 from fart.constants import TIMESTAMP
 from fart.features.calculate_technical_indicators import calculate_technical_indicators
 from fart.features.sort_and_deduplicate_candles import sort_and_deduplicate_candles
+from fart.model.device import get_device
 from fart.model.nbeats import NBeatsNet
 from fart.model.nbeats_config import NBeatsConfig
 from fart.model.nbeats_dataset import build_return_windows
+from fart.model.nbeats_persistence import save_model
 from fart.model.train_test_split import train_test_split
-from fart.utils import get_candle_filepath
+from fart.utils import get_candle_filepath, get_model_filepath
 
 
 def prepare_training_data(
@@ -49,10 +53,13 @@ def train(
     data_dir: Path,
     market: str,
     interval: str,
+    artifacts_dir: Path,
     months: Optional[int] = 6,
     config: Optional[NBeatsConfig] = None,
+    device: Optional[torch.device] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     config = config or NBeatsConfig()
+    device = device or get_device()
 
     X_train, X_test, y_train, y_test = prepare_training_data(
         data_dir, market, interval, months
@@ -70,30 +77,61 @@ def train(
     X_train_windows, y_train_windows = X_all[:n_train_windows], y_all[:n_train_windows]
     X_test_windows = X_all[n_train_windows:]
 
-    model = NBeatsNet(config)
+    model = NBeatsNet(config).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     loss_fn = nn.GaussianNLLLoss()
 
+    train_loader = DataLoader(
+        TensorDataset(X_train_windows, y_train_windows),
+        batch_size=config.batch_size,
+        shuffle=True,
+    )
+
     model.train()
-    for _ in range(config.epochs):
-        optimizer.zero_grad()
-        output = model(X_train_windows)
-        mu, log_sigma = output.unbind(-1)
-        loss = loss_fn(mu, y_train_windows, log_sigma.exp() ** 2)
-        loss.backward()
-        optimizer.step()  # pyright: ignore[reportUnknownMemberType] -- Adam.step is untyped upstream (torch/optim/adam.py)
+    for epoch in range(config.epochs):
+        epoch_loss = 0.0
+        for X_batch, y_batch in train_loader:
+            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+            optimizer.zero_grad()
+            output = model(X_batch)
+            mu, log_sigma = output.unbind(-1)
+            loss = loss_fn(mu, y_batch, log_sigma.exp() ** 2)
+            loss.backward()
+            optimizer.step()  # pyright: ignore[reportUnknownMemberType] -- Adam.step is untyped upstream (torch/optim/adam.py)
+            epoch_loss += loss.item() * X_batch.shape[0]
+
+        logger.info(
+            f"Epoch {epoch + 1}/{config.epochs}: "
+            f"loss={epoch_loss / len(X_train_windows):.6f}"
+        )
+
+    test_loader = DataLoader(
+        TensorDataset(X_test_windows), batch_size=config.batch_size, shuffle=False
+    )
 
     model.eval()
+    mu_batches: List[Tensor] = []
+    log_sigma_batches: List[Tensor] = []
     with torch.no_grad():
-        output = model(X_test_windows)
-        mu, log_sigma = output.unbind(-1)
-        magnitudes = mu.numpy()
-        confidences = (1 / (1 + log_sigma.exp())).numpy()
+        for (X_batch,) in test_loader:
+            X_batch = X_batch.to(device)
+            output = model(X_batch)
+            mu, log_sigma = output.unbind(-1)
+            mu_batches.append(mu.cpu())
+            log_sigma_batches.append(log_sigma.cpu())
+
+    magnitudes = torch.cat(mu_batches).numpy()
+    confidences = (1 / (1 + torch.cat(log_sigma_batches).exp())).numpy()
 
     logger.info(
-        f"N-BEATS quick prototype: {len(magnitudes)} test candles, "
+        f"N-BEATS: {len(magnitudes)} test candles, device={device}, "
         f"magnitude mean={magnitudes.mean():.5f} std={magnitudes.std():.5f}, "
         f"confidence mean={confidences.mean():.5f}"
     )
+
+    timestamp = datetime.now(timezone.utc)
+    model_path = get_model_filepath(artifacts_dir, market, interval, timestamp)
+    save_model(model.cpu(), config, model_path)
+    logger.info(f"Saved model artifact to {model_path}")
 
     return magnitudes, confidences
