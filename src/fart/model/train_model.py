@@ -132,7 +132,7 @@ def train(
         "confidence mean": f"{confidences.mean():.5f}",
     }
     table = tabulate(results.items())
-    logger.info(f"\n\nN-BEATS Trainer\n\n{table}\n")
+    logger.info(f"\n\n{table}\n")
 
     timestamp = datetime.now(timezone.utc)
     model_path = get_model_filepath(artifacts_dir, market, interval, timestamp)
