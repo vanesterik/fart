@@ -42,6 +42,38 @@ def test_prepare_training_data_returns_clean_split(tmp_path: Path) -> None:
     assert X_train.shape[0] > X_test.shape[0]
 
 
+def test_prepare_training_data_deduplicates_and_sorts_candles(tmp_path: Path) -> None:
+    clean_dir = tmp_path / "clean"
+    tampered_dir = tmp_path / "tampered"
+    clean_dir.mkdir()
+    tampered_dir.mkdir()
+
+    _write_candle_csv(clean_dir / "BTC-EUR-1d.csv")
+    tampered_path = tampered_dir / "BTC-EUR-1d.csv"
+    _write_candle_csv(tampered_path)
+
+    # Inject a duplicate of the second row and shuffle it out of order, as
+    # can happen with a resumed download.
+    lines = tampered_path.read_text().splitlines(keepends=True)
+    header, rows = lines[0], lines[1:]
+    duplicate = rows[1]
+    tampered_rows = [rows[0], rows[2], duplicate, rows[1], *rows[3:]]
+    tampered_path.write_text(header + "".join(tampered_rows))
+
+    clean = prepare_training_data(data_dir=clean_dir, market="BTC-EUR", interval="1d")
+    tampered_result = prepare_training_data(
+        data_dir=tampered_dir, market="BTC-EUR", interval="1d"
+    )
+
+    clean_total = sum(x.shape[0] for x in clean[:2])
+    tampered_total = sum(x.shape[0] for x in tampered_result[:2])
+
+    # The duplicate row is dropped, and the out-of-order rows are
+    # re-sorted, so the result is identical to the untampered data despite
+    # one extra (duplicate) line in the source CSV.
+    assert tampered_total == clean_total
+
+
 def test_prepare_training_data_missing_csv_raises(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         prepare_training_data(data_dir=tmp_path, market="BTC-EUR", interval="1d")

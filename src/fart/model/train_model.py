@@ -9,6 +9,7 @@ from torch import nn
 
 from fart.constants import TIMESTAMP
 from fart.features.calculate_technical_indicators import calculate_technical_indicators
+from fart.features.sort_and_deduplicate_candles import sort_and_deduplicate_candles
 from fart.model.nbeats import NBeatsNet
 from fart.model.nbeats_config import NBeatsConfig
 from fart.model.nbeats_dataset import build_return_windows
@@ -30,6 +31,7 @@ def prepare_training_data(
         )
 
     df = pl.read_csv(filepath)
+    df = sort_and_deduplicate_candles(df)
 
     if months is not None:
         max_timestamp = df[TIMESTAMP].max()
