@@ -87,12 +87,12 @@ def test_prepare_training_data_missing_csv_raises(tmp_path: Path) -> None:
 def test_prepare_training_data_filters_to_recent_months(tmp_path: Path) -> None:
     _write_candle_csv(tmp_path / "BTC-EUR-1d.csv", num_rows=400)
 
-    X_train, X_test, y_train, y_test = prepare_training_data(
+    X_train, X_test, _, _ = prepare_training_data(
         data_dir=tmp_path, market="BTC-EUR", interval="1d", months=6
     )
     total_rows_filtered = X_train.shape[0] + X_test.shape[0]
 
-    X_train_full, X_test_full, y_train_full, y_test_full = prepare_training_data(
+    X_train_full, X_test_full, _, _ = prepare_training_data(
         data_dir=tmp_path, market="BTC-EUR", interval="1d", months=None
     )
     total_rows_full = X_train_full.shape[0] + X_test_full.shape[0]
@@ -210,15 +210,15 @@ def test_train_saved_artifact_reproduces_output(tmp_path: Path) -> None:
     )
 
     artifact_path = get_latest_model_filepath(artifacts_dir, "BTC-EUR", "1d")
-    loaded_model = load_model(artifact_path)
+    loaded_model, loaded_config = load_model(artifact_path)
 
-    X_train, X_test, y_train, y_test = prepare_training_data(
+    _, _, y_train, y_test = prepare_training_data(
         data_dir=tmp_path, market="BTC-EUR", interval="1d"
     )
     n_train = y_train.shape[0]
     close_prices = pl.concat([y_train, y_test])
-    X_all, y_all = build_return_windows(close_prices, config.lookback)
-    n_train_windows = max(0, n_train - config.lookback - 1)
+    X_all, _y_all = build_return_windows(close_prices, loaded_config.lookback)
+    n_train_windows = max(0, n_train - loaded_config.lookback - 1)
     X_test_windows = X_all[n_train_windows:]
 
     loaded_model.eval()

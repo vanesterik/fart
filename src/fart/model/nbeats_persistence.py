@@ -28,12 +28,11 @@ def save_model(model: NBeatsNet, config: NBeatsConfig, path: Path) -> None:
     torch.save(checkpoint, path)
 
 
-def load_model(path: Path) -> NBeatsNet:
+def load_model(path: Path) -> tuple[NBeatsNet, NBeatsConfig]:
     """
-    Load a saved NBeatsNet checkpoint, reconstructing the architecture from
-    its bundled config before loading weights into it. Always loads onto
-    CPU -- callers move the model to a specific device themselves if
-    needed.
+    Load a saved NBeatsNet checkpoint, reconstructing the architecture from its
+    bundled config before loading weights into it. Always loads onto CPU --
+    callers move the model to a specific device themselves if needed.
 
     Parameters
     ----------
@@ -41,7 +40,8 @@ def load_model(path: Path) -> NBeatsNet:
 
     Returns
     -------
-    - NBeatsNet: The reconstructed model, weights loaded, in eval mode.
+    - tuple[NBeatsNet, NBeatsConfig]: The reconstructed model and its
+      configuration.
 
     """
     checkpoint = cast(
@@ -51,4 +51,4 @@ def load_model(path: Path) -> NBeatsNet:
     model = NBeatsNet(config)
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
-    return model
+    return model, config

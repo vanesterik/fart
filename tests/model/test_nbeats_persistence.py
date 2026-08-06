@@ -16,14 +16,14 @@ def test_save_and_load_model_round_trip(tmp_path: Path) -> None:
 
     path = tmp_path / "checkpoint.pt"
     save_model(model, config, path)
-    loaded = load_model(path)
+    loaded_model, loaded_config = load_model(path)
 
-    assert loaded.state_dict().keys() == model.state_dict().keys()
+    assert loaded_model.state_dict().keys() == model.state_dict().keys()
 
-    x = torch.randn(3, config.lookback)
+    x = torch.randn(3, loaded_config.lookback)
     with torch.no_grad():
         original_output = model(x)
-        loaded_output = loaded(x)
+        loaded_output = loaded_model(x)
 
     assert torch.allclose(original_output, loaded_output)
 
