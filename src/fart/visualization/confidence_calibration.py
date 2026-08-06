@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
-from fart.constants import YELLOW_SEA
+from fart.constants import HONOLULU_BLUE
 
 
 def plot_confidence_calibration(
@@ -34,7 +34,7 @@ def plot_confidence_calibration(
 
     for ax in (ax_full, ax_zoom):
         ax.scatter(  # pyright: ignore[reportUnknownMemberType] -- Axes.scatter's **kwargs is untyped upstream
-            confidence, error, s=16, alpha=0.45, color=YELLOW_SEA, edgecolors="none"
+            confidence, error, s=16, alpha=0.45, color=HONOLULU_BLUE, edgecolors="none"
         )
         ax.set_yscale("log")
         ax.set_xlabel("Confidence")
