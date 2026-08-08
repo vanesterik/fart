@@ -30,3 +30,15 @@ def test_nbeats_config_batch_size_override() -> None:
     config = NBeatsConfig(batch_size=4)
 
     assert config.batch_size == 4
+
+
+def test_nbeats_config_default_beta_nll() -> None:
+    config = NBeatsConfig()
+
+    assert config.beta_nll == 0.5
+
+
+def test_nbeats_config_beta_nll_override() -> None:
+    config = NBeatsConfig(beta_nll=1.0)
+
+    assert config.beta_nll == 1.0

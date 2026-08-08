@@ -7,7 +7,7 @@ import polars as pl
 import torch
 from loguru import logger
 from tabulate import tabulate
-from torch import Tensor, nn
+from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
 
 from fart.constants import TIMESTAMP
@@ -17,6 +17,7 @@ from fart.model.device import get_device
 from fart.model.nbeats import NBeatsNet
 from fart.model.nbeats_config import NBeatsConfig
 from fart.model.nbeats_dataset import build_return_windows
+from fart.model.nbeats_loss import beta_nll_loss
 from fart.model.nbeats_persistence import save_model
 from fart.model.train_test_split import train_test_split
 from fart.utils import get_candle_filepath, get_model_filepath
@@ -84,7 +85,6 @@ def train(
 
     model = NBeatsNet(config).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    loss_fn = nn.GaussianNLLLoss()
 
     train_loader = DataLoader(
         TensorDataset(X_train_windows, y_train_windows),
@@ -100,8 +100,8 @@ def train(
             optimizer.zero_grad()
             output = model(X_batch)
             mu, log_sigma = output.unbind(-1)
-            loss = loss_fn(mu, y_batch, log_sigma.exp() ** 2)
-            loss.backward()
+            loss = beta_nll_loss(mu, y_batch, log_sigma, config.beta_nll)
+            loss.backward()  # pyright: ignore[reportUnknownMemberType] -- Tensor.backward is untyped upstream (torch/_tensor.py)
             optimizer.step()  # pyright: ignore[reportUnknownMemberType] -- Adam.step is untyped upstream (torch/optim/adam.py)
             epoch_loss += loss.item() * X_batch.shape[0]
 

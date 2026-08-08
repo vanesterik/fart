@@ -8,6 +8,10 @@ class NBeatsConfig(BaseModel):
     Attributes
     ----------
     - batch_size (int): Minibatch size for training and inference.
+    - beta_nll (float): Exponent weighting each window's loss contribution
+      by its own predicted variance (beta-NLL, Seitzer et al. 2022). `0.0`
+      recovers plain Gaussian NLL; `1.0` approximates MSE-style weighting
+      on the mean.
     - epochs (int): Number of training epochs.
     - hidden_width (int): Width of each block's hidden fully-connected layers.
     - learning_rate (float): Adam optimizer learning rate.
@@ -18,6 +22,7 @@ class NBeatsConfig(BaseModel):
     """
 
     batch_size: int = 128
+    beta_nll: float = 0.5
     epochs: int = 50
     hidden_width: int = 64
     learning_rate: float = 1e-3
