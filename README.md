@@ -55,10 +55,7 @@ Everything past a trained checkpoint — turning predictions into orders, the li
 The state machine below is the target design for Part B's live-trading loop, not current behavior — it's included here to document the intended shape of the system once `fart/core/broker.py` is built out. It assumes a trained Part A checkpoint is already loaded (training is a separate, offline `fart train` run, not part of this loop) and follows the [PRD](docs/product/part-b-trade-execution-system-prd.md)'s risk-management-first framing: every signal passes through a kill-switch check and position sizing/stop-loss before an order is ever placed, and exchange-side failures (downtime, partial fills, rate limits, auth expiry) are handled explicitly rather than silently:
 
 ```mermaid
----
-config:
-  layout: elk
----
+
 stateDiagram
    state kill_switch_condition <<choice>>
    state order_outcome_condition <<choice>>
