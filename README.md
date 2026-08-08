@@ -62,10 +62,17 @@ stateDiagram
    state drawdown_condition <<choice>>
 
    [*] --> listening
+
    listening --> predicting_trade_signal: RECEIVE_CANDLE_DATA
+   listening --> pausing: PAUSE_PROGRAM
+   listening --> terminating: TERMINATE_PROGRAM
+   pausing --> listening: RESUME_PROGRAM
+   terminating --> [*]
+
    predicting_trade_signal --> kill_switch_condition: EVALUATE_PREDICTION
    kill_switch_condition --> sizing_position: KILL_SWITCH_CLEAR
    kill_switch_condition --> halted: KILL_SWITCH_ENGAGED
+
    sizing_position --> placing_order: APPLY_RISK_RULES
    placing_order --> order_outcome_condition: SUBMIT_ORDER
    order_outcome_condition --> monitoring_position: FILLED
@@ -73,14 +80,12 @@ stateDiagram
    order_outcome_condition --> handling_failure: EXCHANGE_ERROR
    handling_partial_fill --> monitoring_position: RECONCILE_FILL
    handling_failure --> listening: LOG_AND_ALERT
+
    monitoring_position --> drawdown_condition: UPDATE_DRAWDOWN
    drawdown_condition --> listening: WITHIN_BOUNDS
    drawdown_condition --> halted: MAX_DRAWDOWN_BREACH
+
    halted --> listening: OPERATOR_RESUME
-   listening --> pausing: PAUSE_PROGRAM
-   pausing --> listening: RESUME_PROGRAM
-   listening --> terminating: TERMINATE_PROGRAM
-   terminating --> [*]
 
    note right of sizing_position
      Position size + stop-loss from
@@ -150,10 +155,22 @@ The project follows the [cookiecutter data science project template](https://dri
 
 ## References
 
+### Part A — Signal generation
+
 Papers behind the current N-BEATS + beta-NLL signal-generation model (see [Project Status](#project-status)):
 
 - Oreshkin, B. N., Carpov, D., Chapados, N., & Bengio, Y. (2020). [N-BEATS: Neural basis expansion analysis for interpretable time series forecasting](https://arxiv.org/abs/1905.10437). *ICLR 2020.* The doubly-residual, stacked backcast/forecast architecture `fart/model/nbeats.py` is built on. Note the original paper is a point-forecast architecture (trained with MAPE/SMAPE/MASE losses on the M4 competition) — it doesn't cover uncertainty estimation; the probabilistic `(mu, log_sigma)` head and its loss are this project's own addition on top of the backbone.
 - Seitzer, M., Tavakoli, A., Antic, D., & Martius, G. (2022). [On the Pitfalls of Heteroscedastic Uncertainty Estimation with Probabilistic Neural Networks](https://arxiv.org/abs/2203.09168). *ICLR 2022.* Source of the beta-NLL loss (`fart/model/nbeats_loss.py`), used to fix a variance-collapse failure where plain Gaussian NLL let the model shrink predicted confidence to nearly the same value for every candle instead of learning which ones were actually harder to predict.
+
+### Part B — Trade execution
+
+Sources behind the risk-control design in the [Planned Trade Execution Flow](#planned-trade-execution-flow) (`kill_switch_condition`, `drawdown_condition`, position sizing, stop-loss). Unlike Part A, this is a mix of regulation and academic finance, not a single research lineage — and two pieces of the design (fixed-% position sizing, and the paper-trading/failure-handling operational practice) remain unsourced practitioner convention rather than citable work, which the [PRD](docs/product/part-b-trade-execution-system-prd.md) flags as its weakest section:
+
+- U.S. Securities and Exchange Commission (2010). [Risk Management Controls for Brokers or Dealers with Market Access](https://www.sec.gov/files/rules/final/2010/34-63241-secg.htm), Rule 15c3-5. The regulatory origin of "kill switch" as a formal requirement — automated controls able to immediately halt an algorithm's order flow.
+- Grossman, S. J., & Zhou, Z. (1993). [Optimal Investment Strategies for Controlling Drawdowns](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1467-9965.1993.tb00044.x). *Mathematical Finance*, 3, 241–276. Foundational work on constraining a strategy to never lose more than a fixed fraction of its peak value — the basis for `drawdown_condition`.
+- Kelly, J. L. (1956). [A New Interpretation of Information Rate](https://onlinelibrary.wiley.com/doi/abs/10.1002/j.1538-7305.1956.tb03809.x). *Bell System Technical Journal*, 35, 917–926. One of the PRD's three named position-sizing model options.
+- Moskowitz, T. J., Ooi, Y. H., & Pedersen, L. H. (2012). [Time Series Momentum](https://www.sciencedirect.com/science/article/pii/S0304405X11002613). *Journal of Financial Economics*. Scales each position to a target ex-ante volatility — the PRD's "volatility-based" sizing option.
+- Kaminski, K. M., & Lo, A. W. (2014). [When Do Stop-Loss Rules Stop Losses?](https://www.sciencedirect.com/science/article/abs/pii/S138641811300030X) *Journal of Financial Markets*, 18, 234–254. Analytical framework for when a stop-loss rule helps vs. hurts expected returns.
 
 ## License
 

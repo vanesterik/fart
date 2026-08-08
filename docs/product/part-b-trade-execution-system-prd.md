@@ -26,6 +26,8 @@ A poorly-built execution layer can turn a good signal into a loss (slippage, bad
 ### Evidence
 🔶 **Assumption** — unlike Part A, there's no backtest or interview data here yet; the case rests on reasoning from the canvas (retail algo traders commonly need circuit breakers, position limits, idempotent order handling) rather than FART-specific evidence, since nothing has been built or run live yet.
 
+The quantitative risk controls in Section 5/7 (kill switch, max-drawdown halt, position sizing, stop-loss) are backed by regulation and academic finance, not just retail-algo convention — see the [README's Part B references](../../README.md#part-b--trade-execution) (SEC Rule 15c3-5 on market-access kill switches; Grossman & Zhou 1993 on drawdown-constrained investment; Kelly 1956 and Moskowitz/Ooi/Pedersen 2012 on position sizing; Kaminski & Lo 2014 on stop-loss). What's still uncited is the *operational* half of this PRD — the paper-trading/dry-run protocol and exchange failure-mode handling (Stories 3–4) — which remains general engineering/practitioner convention rather than citable work.
+
 ---
 
 ## 3. Target Users & Personas
@@ -178,7 +180,7 @@ As the operator, I want `fart/core/broker.py` wired to place real, idempotent or
 ## Self-Assessment
 
 - **Strongest section:** Solution Overview and User Stories — the risk-first, connector-second sequencing from the canvas translates cleanly into a concrete build order (risk layer → failure handling → paper trading → live connector).
-- **Weakest section:** Problem Statement's Evidence — unlike Part A, there's no data or interview backing this yet; it's reasoning from first principles and general retail-algo-trading practice, not FART-specific evidence.
+- **Weakest section:** Problem Statement's Evidence — the quantitative risk controls (kill switch, drawdown halt, position sizing, stop-loss) now have citations (see Evidence, above), but the operational half — paper-trading protocol and exchange failure-mode handling — is still reasoning from first principles and general retail-algo-trading practice, not FART-specific evidence or citable work.
 - **Top assumptions to validate:**
   1. 🔶 That there's no meaningful secondary persona distinct from the operator
   2. 🔶 That the existing `fart/core/exchange.py` wrapper is sufficient for order placement without further extension
