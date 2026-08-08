@@ -2,6 +2,7 @@ from typing import Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import StrMethodFormatter
 
 from fart.constants import HONOLULU_BLUE
 from fart.visualization.diverging_bar_chart import plot_diverging_bars
@@ -48,6 +49,7 @@ def plot_trade_returns(
     ax_capital.set_title(  # pyright: ignore[reportUnknownMemberType] -- Axes.set_title's **kwargs is untyped upstream
         "Trade Returns and Cumulative Profit"
     )
+    ax_capital.yaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
 
     ax_return = ax_capital.twinx()  # pyright: ignore[reportUnknownMemberType] -- Axes.twinx's return type is untyped upstream
     plot_diverging_bars(ax_return, trade_number, returns)
