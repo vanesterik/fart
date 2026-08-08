@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 
-def setup_plot_styles() -> None:
+def apply_plot_styles() -> None:
     """
     Apply matplotlib rcParams that reproduce mplfinance's built-in
     "tradingview" style (grey axes edges, dashed grid, red titles),

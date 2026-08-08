@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
 
-from fart.visualization.setup_plot_styles import setup_plot_styles
+from fart.visualization.plot_styles import apply_plot_styles
 
 
-def test_setup_plot_styles_applies_tradingview_rcparams() -> None:
+def test_apply_plot_styles_applies_tradingview_rcparams() -> None:
     plt.rcdefaults()
 
-    setup_plot_styles()
+    apply_plot_styles()
 
     assert plt.rcParams["axes.titlecolor"] == "red"
     assert plt.rcParams["axes.edgecolor"] == "grey"
