@@ -5,7 +5,7 @@ import polars as pl
 import seaborn as sns
 from matplotlib.colors import ListedColormap
 
-from fart.constants import HONOLULU_BLUE, TIMESTAMP, YELLOW_SEA
+from fart.constants import IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN, TIMESTAMP
 
 
 def plot_missing_value_heatmap(df: pl.DataFrame, title: Optional[str] = None) -> None:
@@ -29,7 +29,7 @@ def plot_missing_value_heatmap(df: pl.DataFrame, title: Optional[str] = None) ->
     )
     sns.heatmap(  # pyright: ignore[reportUnknownMemberType] -- seaborn.heatmap's **kwargs is untyped upstream
         null_mask,
-        cmap=ListedColormap([HONOLULU_BLUE, YELLOW_SEA]),
+        cmap=ListedColormap([PERSIAN_GREEN_MAIN, IMPERIAL_RED_MAIN]),
         cbar=False,
         linewidths=0,
         xticklabels=False,
