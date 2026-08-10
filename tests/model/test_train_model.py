@@ -110,7 +110,7 @@ def test_train_logs_prepared_shapes(tmp_path: Path) -> None:
 
     try:
         train(
-            data_dir=tmp_path,
+            assets_dir=tmp_path,
             market="BTC-EUR",
             interval="1d",
             artifacts_dir=tmp_path / "artifacts",
@@ -131,7 +131,7 @@ def test_train_fits_nbeats_and_returns_magnitude_confidence(tmp_path: Path) -> N
 
     try:
         magnitudes, confidences = train(
-            data_dir=tmp_path,
+            assets_dir=tmp_path,
             market="BTC-EUR",
             interval="1d",
             artifacts_dir=tmp_path / "artifacts",
@@ -155,7 +155,7 @@ def test_train_saves_versioned_artifact_each_run(tmp_path: Path) -> None:
     config = NBeatsConfig(epochs=1, num_stacks=1, num_blocks_per_stack=1, batch_size=8)
 
     train(
-        data_dir=tmp_path,
+        assets_dir=tmp_path,
         market="BTC-EUR",
         interval="1d",
         artifacts_dir=artifacts_dir,
@@ -163,7 +163,7 @@ def test_train_saves_versioned_artifact_each_run(tmp_path: Path) -> None:
         device=torch.device("cpu"),
     )
     train(
-        data_dir=tmp_path,
+        assets_dir=tmp_path,
         market="BTC-EUR",
         interval="1d",
         artifacts_dir=artifacts_dir,
@@ -180,7 +180,7 @@ def test_train_minibatches_with_small_batch_size(tmp_path: Path) -> None:
     _write_candle_csv(tmp_path / "BTC-EUR-1d.csv", num_rows=200)
 
     magnitudes, confidences = train(
-        data_dir=tmp_path,
+        assets_dir=tmp_path,
         market="BTC-EUR",
         interval="1d",
         artifacts_dir=tmp_path / "artifacts",
@@ -201,7 +201,7 @@ def test_train_saved_artifact_reproduces_output(tmp_path: Path) -> None:
     config = NBeatsConfig(epochs=1, num_stacks=1, num_blocks_per_stack=1, batch_size=8)
 
     magnitudes, confidences = train(
-        data_dir=tmp_path,
+        assets_dir=tmp_path,
         market="BTC-EUR",
         interval="1d",
         artifacts_dir=artifacts_dir,

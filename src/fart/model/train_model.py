@@ -52,10 +52,10 @@ def prepare_training_data(
 
 
 def train(
-    data_dir: Path,
-    market: str,
-    interval: str,
+    assets_dir: Path,
     artifacts_dir: Path,
+    interval: str,
+    market: str,
     months: Optional[int] = 6,
     config: Optional[NBeatsConfig] = None,
     device: Optional[torch.device] = None,
@@ -64,7 +64,7 @@ def train(
     device = device or get_device()
 
     X_train, X_test, y_train, y_test = prepare_training_data(
-        data_dir, market, interval, months
+        assets_dir, market, interval, months
     )
     shapes = {
         "X_train": X_train.shape,

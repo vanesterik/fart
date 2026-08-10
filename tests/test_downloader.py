@@ -18,11 +18,11 @@ def _make_downloader(
         for m in (known_markets if known_markets is not None else [market])
     ]
     return Downloader(
-        data_dir=tmp_path,
-        market=market,
-        interval="1d",
         api_key="test-api-key",
         api_secret="test-api-secret",
+        assets_dir=tmp_path,
+        interval="1d",
+        market=market,
     )
 
 
@@ -76,7 +76,7 @@ def test_downloader_resumes_one_interval_past_last_cached_candle(
 ) -> None:
     mock_bitvavo.return_value.markets.return_value = [{"market": "BTC-EUR"}]
     downloader = Downloader(
-        data_dir=tmp_path,
+        assets_dir=tmp_path,
         market="BTC-EUR",
         interval=interval,
         api_key="test-api-key",

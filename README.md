@@ -38,11 +38,11 @@ uv sync
 Two commands work end to end today: downloading candle data and training the signal-generation model on it.
 
 ```bash
-uv run fart download assets BTC-EUR 1h  # data_dir, market, interval
-uv run fart train assets BTC-EUR 1h --months 3
+uv run fart download --assets-dir assets --market BTC-EUR --interval 1h
+uv run fart train --assets-dir assets --market BTC-EUR --interval 1h --months 3
 ```
 
-`download` backfills OHLCV candle data from Bitvavo into a per-market/interval CSV cache under `data_dir`, resuming from the last cached candle on each run instead of re-fetching from scratch. It requires `BITVAVO_API_KEY` / `BITVAVO_API_SECRET` in a `.env` file.
+`download` backfills OHLCV candle data from Bitvavo into a per-market/interval CSV cache under `assets_dir`, resuming from the last cached candle on each run instead of re-fetching from scratch. It requires `BITVAVO_API_KEY` / `BITVAVO_API_SECRET` in a `.env` file.
 
 `train` loads that cached data, computes technical indicators, and fits the N-BEATS model (see [Project Status](#project-status)) on sliding windows of percent returns, logging per-candle magnitude/confidence and saving a versioned checkpoint to `artifacts/`. `--months` limits training to the most recent N months of history (the full cached history is used if omitted).
 

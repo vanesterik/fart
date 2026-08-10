@@ -17,13 +17,13 @@ Candle = Tuple[int, float, float, float, float, float]
 class Downloader:
     def __init__(
         self,
-        data_dir: Path,
+        assets_dir: Path,
         market: str,
         interval: str,
         api_key: str | None,
         api_secret: str | None,
     ):
-        self._data_dir = data_dir
+        self._data_dir = assets_dir
         self._market = market
         self._interval = interval
         self._client = Bitvavo(
