@@ -4,34 +4,11 @@ from typing import Any, cast
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.model_selection import TimeSeriesSplit  # pyright: ignore[reportMissingTypeStubs] -- sklearn ships no type stubs (sklearn/model_selection/__init__.py)
+from sklearn.model_selection import (
+    TimeSeriesSplit,  # pyright: ignore[reportMissingTypeStubs] -- sklearn ships no type stubs (sklearn/model_selection/__init__.py)
+)
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
-
-
-def build_model(num_lags: int, hidden_width: int) -> nn.Module:
-    """
-    Build a small feed-forward regression model: two ReLU hidden layers
-    over a window of `num_lags` past values, predicting the next value.
-
-    Parameters
-    ----------
-    - num_lags (int): Width of the input window (matches the lag window
-      size produced by `prepare_datasets.py::prepare_datasets`).
-    - hidden_width (int): Width of each hidden layer.
-
-    Returns
-    -------
-    - nn.Module: An untrained model.
-
-    """
-    return nn.Sequential(
-        nn.Linear(num_lags, hidden_width),
-        nn.ReLU(),
-        nn.Linear(hidden_width, hidden_width),
-        nn.ReLU(),
-        nn.Linear(hidden_width, 1),
-    )
 
 
 def train_model(
