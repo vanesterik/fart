@@ -23,14 +23,14 @@ def evaluate_model(
     model.eval()
     with torch.no_grad():
         y_train_pred = (
-            model(torch.tensor(x_train, dtype=torch.float32)).numpy().reshape(-1, 1)
+            model(torch.tensor(x_train, dtype=torch.float32)).numpy().reshape(-1)
         )
         y_test_pred = (
-            model(torch.tensor(x_test, dtype=torch.float32)).numpy().reshape(-1, 1)
+            model(torch.tensor(x_test, dtype=torch.float32)).numpy().reshape(-1)
         )
 
-    accuracy_train = calculate_accuracy(y_train_pred, y_train.reshape(-1, 1))
-    accuracy_test = calculate_accuracy(y_test_pred, y_test.reshape(-1, 1))
+    accuracy_train = calculate_accuracy(y_train_pred, y_train)
+    accuracy_test = calculate_accuracy(y_test_pred, y_test)
     rmse_train = float(root_mean_squared_error(y_train_pred, y_train))
     rmse_test = float(root_mean_squared_error(y_test_pred, y_test))
     mae_train = float(mean_absolute_error(y_train_pred, y_train))  # pyright: ignore[reportUnknownArgumentType] -- mean_absolute_error's return is untyped upstream (sklearn ships no type stubs)
