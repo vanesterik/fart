@@ -8,9 +8,9 @@ from fart.utils import get_latest_model_filepath
 
 def test_get_latest_model_filepath_picks_max_by_filename() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-        older = Path(temp_dir) / "20260101T000000000000Z-BTC-EUR-1d-nbeats.pt"
-        newer = Path(temp_dir) / "20260804T144749032031Z-BTC-EUR-1d-nbeats.pt"
-        other_market = Path(temp_dir) / "20261231T235959999999Z-ETH-EUR-1d-nbeats.pt"
+        older = Path(temp_dir) / "20260101T000000000000Z-BTC-EUR-1d.pt"
+        newer = Path(temp_dir) / "20260804T144749032031Z-BTC-EUR-1d.pt"
+        other_market = Path(temp_dir) / "20261231T235959999999Z-ETH-EUR-1d.pt"
 
         older.touch()
         newer.touch()

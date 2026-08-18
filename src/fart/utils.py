@@ -26,7 +26,7 @@ def get_project_root() -> Path:
     return Path(__file__).parent.parent
 
 
-def get_candle_filepath(data_dir: Path, market: str, interval: str) -> Path:
+def get_data_filepath(data_dir: Path, market: str, interval: str) -> Path:
     """
     Get the file path for a candle data file.
 
@@ -48,9 +48,9 @@ def get_model_filepath(
     artifacts_dir: Path, market: str, interval: str, timestamp: datetime
 ) -> Path:
     """
-    Get the file path for a versioned N-BEATS model artifact. The datetime
-    prefix means artifacts sort chronologically under a plain directory
-    listing, and multiple training runs for the same market/interval don't
+    Get the file path for a versioned model artifact. The datetime prefix
+    means artifacts sort chronologically under a plain directory listing,
+    and multiple training runs for the same market/interval don't
     overwrite each other.
 
     Parameters
@@ -66,14 +66,14 @@ def get_model_filepath(
 
     """
     prefix = timestamp.strftime("%Y%m%dT%H%M%S%fZ")
-    return artifacts_dir / f"{prefix}-{market}-{interval}-nbeats.pt"
+    return artifacts_dir / f"{prefix}-{market}-{interval}.pt"
 
 
 def get_latest_model_filepath(artifacts_dir: Path, market: str, interval: str) -> Path:
     """
-    Get the most recently trained N-BEATS model artifact for a market and
-    interval, determined by the artifact file name's datetime prefix (not
-    filesystem modification time, which copies/checkouts can alter).
+    Get the most recently trained model artifact for a market and interval,
+    determined by the artifact file name's datetime prefix (not filesystem
+    modification time, which copies/checkouts can alter).
 
     Parameters
     ----------
@@ -86,7 +86,7 @@ def get_latest_model_filepath(artifacts_dir: Path, market: str, interval: str) -
     - Path: Path to the most recent model artifact file.
 
     """
-    file_list = list(artifacts_dir.glob(f"*-{market}-{interval}-nbeats.pt"))
+    file_list = list(artifacts_dir.glob(f"*-{market}-{interval}.pt"))
 
     return max(file_list, key=lambda f: f.name)
 

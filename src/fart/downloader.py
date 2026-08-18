@@ -9,7 +9,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 from fart.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
-from fart.utils import get_candle_filepath
+from fart.utils import get_data_filepath
 
 Candle = Tuple[int, float, float, float, float, float]
 
@@ -64,7 +64,7 @@ class Downloader:
 
     def _determine_filepath(self):
         self._data_dir.mkdir(parents=True, exist_ok=True)
-        self._filepath = get_candle_filepath(
+        self._filepath = get_data_filepath(
             self._data_dir,
             self._market,
             self._interval,
