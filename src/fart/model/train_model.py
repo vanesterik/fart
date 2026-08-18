@@ -4,8 +4,8 @@ from typing import Any, cast
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.model_selection import (
-    TimeSeriesSplit,  # pyright: ignore[reportMissingTypeStubs] -- sklearn ships no type stubs (sklearn/model_selection/__init__.py)
+from sklearn.model_selection import (  # pyright: ignore[reportMissingTypeStubs] -- sklearn ships no type stubs (sklearn/model_selection/__init__.py)
+    TimeSeriesSplit,
 )
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
