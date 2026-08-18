@@ -8,7 +8,7 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
 
-[*.py]
+[*.{py,ipynb}]
 indent_size = 4
 
 [*.{yml,yaml}]
@@ -22,6 +22,3 @@ indent_size = 1
 
 [*.md]
 trim_trailing_whitespace = false
-
-[Makefile]
-indent_style = tab

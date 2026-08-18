@@ -15,7 +15,7 @@ def test_get_model_filepath() -> None:
     )
 
     assert filepath == Path(
-        "/tmp/fart-test-artifacts/20260804T144749032031Z-BTC-EUR-1d-nbeats.pt"
+        "/tmp/fart-test-artifacts/20260804T144749032031Z-BTC-EUR-1d.pt"
     )
 
 
@@ -30,5 +30,5 @@ def test_get_model_filepath_different_market_and_interval() -> None:
     )
 
     assert filepath == Path(
-        "/tmp/fart-test-artifacts/20260101T000000000000Z-ETH-EUR-1h-nbeats.pt"
+        "/tmp/fart-test-artifacts/20260101T000000000000Z-ETH-EUR-1h.pt"
     )

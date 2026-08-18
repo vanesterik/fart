@@ -18,12 +18,12 @@ The name **F.A.R.T.** is an abbreviation play on the title "Financial Analysis a
 
 This is a solo research project, and it's mid-refactor — the code you'll find here is split across two planned initiatives, sequenced deliberately:
 
-- **Part A — Signal generation.** Rewriting the model that turns historical candle data into buy/sell signals from a six-way classifier (up/down/hold) to a sequence-aware regression model, so it captures trade *magnitude* against cost rather than a bare direction. This is the active work: an [N-BEATS](#references) network trained on sliding windows of percent returns, predicting a per-candle magnitude and confidence. The confidence output turned out to be uncalibrated — the model shrinks its predicted uncertainty to nearly the same value for every candle regardless of how right or wrong it actually was — and [beta-NLL](#references) was tried as a fix, since it reweights each window's loss contribution by its own predicted variance. A single-run comparison first suggested it helped, but a 130-run reproducibility check (`notebooks/3.0-kve-beta-nll-reproducibility-check.ipynb`; 30 runs each at beta 0.0/0.5/1.0) found no statistically significant difference between any of them in either mean confidence/error correlation or run-to-run variance — that original result was a favorable single draw, not a reproducible effect. `NBeatsConfig.beta_nll` now defaults back to `0.0` (mathematically identical to plain Gaussian NLL), kept as a config knob rather than removed in case it's worth revisiting with a larger training set. **The underlying calibration problem remains unsolved** — confidence stays weakly informative (r ≈ −0.09 to actual error) under every loss configuration tested so far.
+- **Part A — Signal generation.** Rewriting the model that turns historical candle data into buy/sell signals from a six-way classifier (up/down/hold) to a sequence-aware regression model, so it captures trade *magnitude* against cost rather than a bare direction. The first prototype was an [N-BEATS](#references) network trained on sliding windows of percent returns, predicting a per-candle magnitude and confidence via a probabilistic head. That confidence output turned out to be uncalibrated — the model shrunk its predicted uncertainty to nearly the same value for every candle regardless of how right or wrong it actually was — and [beta-NLL](#references) was tried as a fix, since it reweights each window's loss contribution by its own predicted variance. A single-run comparison first suggested it helped, but a 130-run reproducibility check (30 runs each at beta 0.0/0.5/1.0) found no statistically significant difference between any of them in either mean confidence/error correlation or run-to-run variance — that original result was a favorable single draw, not a reproducible effect. **The calibration problem was never solved, and that N-BEATS implementation was retired.** Rather than commit to a single replacement architecture, the active work is now a **five-way architecture screen**: a small feed-forward (`nn.Sequential`) MLP baseline was built first — no uncertainty head, just magnitude, trained/evaluated/persisted via `fart/model/prepare_datasets.py`, `train_model.py`, `evaluate_model.py`, and `persist_model.py` — and its notebook (`notebooks/2.0-kve-data-analysis.ipynb`) now serves as the template for adapting to CNN, GRU, N-BEATS (rebuilt fresh, not restored), and a time-series transformer. All five are screened on the same RMSE/directional-accuracy metrics before the 1–2 best performers go through full walk-forward backtest validation.
   See the [Problem Framing Canvas](docs/product/part-a-signal-generation-refactor.md) and [PRD](docs/product/part-a-signal-generation-refactor-prd.md).
 - **Part B — Trade execution.** Not yet started. Deliberately sequenced *after* Part A, and framed as a risk-management problem first (position sizing, stop-loss, kill switch, failure recovery) and a Bitvavo-connector problem second. The typed exchange wrapper (`fart/core/exchange.py`) and live terminal dashboard (`fart/core/dashboard.py`) exist as early scaffolding but aren't wired into a working entrypoint yet — `fart/core/broker.py` and `fart/model/predict_model.py`, which would tie them together, are still empty stubs.
   See the [Problem Framing Canvas](docs/product/part-b-trade-execution-system.md) and [PRD](docs/product/part-b-trade-execution-system-prd.md).
 
-What actually works today, end to end, is downloading candle data and training the N-BEATS model on it (see Usage below) — everything downstream of a trained model (predictions, order placement, the live dashboard) is upcoming Part B work, not yet runnable.
+What actually works today, end to end, is downloading candle data and training the signal-generation model on it (see Usage below) — everything downstream of a trained model (predictions, order placement, the live dashboard) is upcoming Part B work, not yet runnable.
 
 ## Installation
 
@@ -39,12 +39,12 @@ Two commands work end to end today: downloading candle data and training the sig
 
 ```bash
 uv run fart download --assets-dir assets --market BTC-EUR --interval 1h
-uv run fart train --assets-dir assets --market BTC-EUR --interval 1h --months 3
+uv run fart train --assets-dir assets --market BTC-EUR --interval 1h --num-lags 50
 ```
 
 `download` backfills OHLCV candle data from Bitvavo into a per-market/interval CSV cache under `assets_dir`, resuming from the last cached candle on each run instead of re-fetching from scratch. It requires `BITVAVO_API_KEY` / `BITVAVO_API_SECRET` in a `.env` file.
 
-`train` loads that cached data, computes technical indicators, and fits the N-BEATS model (see [Project Status](#project-status)) on sliding windows of percent returns, logging per-candle magnitude/confidence and saving a versioned checkpoint to `artifacts/`. `--months` limits training to the most recent N months of history (the full cached history is used if omitted).
+`train` loads that cached data, computes the target signal (`Magnitude`, signed percent-change), and fits a small feed-forward regression model (see [Project Status](#project-status)) on sliding lag windows, logging directional accuracy/RMSE on both splits and saving a versioned checkpoint to `artifacts/`.
 
 Run `uv run fart --help` for the full set of options.
 
@@ -108,7 +108,6 @@ The project follows the [cookiecutter data science project template](https://dri
 
 ```
     ├── LICENSE
-    ├── Makefile           <- Convenience wrappers around `uv run ...` commands.
     ├── README.md          <- The top-level README for developers using this project.
     │
     ├── assets             <- Cached candle data, one CSV per market/interval.
@@ -143,11 +142,10 @@ The project follows the [cookiecutter data science project template](https://dri
         │   └── calculate_trade_returns.py
         │
         ├── model          <- Part A's regression pipeline.
-        │   ├── train_model.py        <- Loads candles, computes indicators, fits N-BEATS.
-        │   ├── nbeats.py             <- Hand-rolled, doubly-residual N-BEATS net.
-        │   ├── nbeats_loss.py        <- Beta-NLL loss (see References).
-        │   ├── nbeats_config.py      <- Model + training hyperparameters.
-        │   ├── nbeats_persistence.py <- Checkpoint save/load.
+        │   ├── prepare_datasets.py   <- Loads candles, computes Magnitude, builds lag windows + split.
+        │   ├── train_model.py        <- Builds and fits the feed-forward regression model.
+        │   ├── evaluate_model.py     <- Directional accuracy + RMSE on train/test.
+        │   ├── persist_model.py      <- Checkpoint save/load.
         │   └── predict_model.py      <- Empty stub; not yet connected to a signal path.
         │
         └── visualization  <- Matplotlib/seaborn plotting helpers for notebooks.
@@ -157,10 +155,10 @@ The project follows the [cookiecutter data science project template](https://dri
 
 ### Part A — Signal generation
 
-Papers behind the current N-BEATS + beta-NLL signal-generation model (see [Project Status](#project-status)):
+Papers grounding the architectures in the current five-way screen (see [Project Status](#project-status)):
 
-- Oreshkin, B. N., Carpov, D., Chapados, N., & Bengio, Y. (2020). [N-BEATS: Neural basis expansion analysis for interpretable time series forecasting](https://arxiv.org/abs/1905.10437). *ICLR 2020.* The doubly-residual, stacked backcast/forecast architecture `fart/model/nbeats.py` is built on. Note the original paper is a point-forecast architecture (trained with MAPE/SMAPE/MASE losses on the M4 competition) — it doesn't cover uncertainty estimation; the probabilistic `(mu, log_sigma)` head and its loss are this project's own addition on top of the backbone.
-- Seitzer, M., Tavakoli, A., Antic, D., & Martius, G. (2022). [On the Pitfalls of Heteroscedastic Uncertainty Estimation with Probabilistic Neural Networks](https://arxiv.org/abs/2203.09168). *ICLR 2022.* Source of the beta-NLL loss (`fart/model/nbeats_loss.py`), used to fix a variance-collapse failure where plain Gaussian NLL let the model shrink predicted confidence to nearly the same value for every candle instead of learning which ones were actually harder to predict.
+- Oreshkin, B. N., Carpov, D., Chapados, N., & Bengio, Y. (2020). [N-BEATS: Neural basis expansion analysis for interpretable time series forecasting](https://arxiv.org/abs/1905.10437). *ICLR 2020.* The doubly-residual, stacked backcast/forecast architecture behind N-BEATS, one of the five candidates being screened (rebuilt fresh, not restored from the earlier retired implementation — see Project Status). Note the original paper is a point-forecast architecture (trained with MAPE/SMAPE/MASE losses on the M4 competition) — it doesn't cover uncertainty estimation; a prior attempt at this project added a probabilistic `(mu, log_sigma)` head on top of the backbone, discussed below.
+- Seitzer, M., Tavakoli, A., Antic, D., & Martius, G. (2022). [On the Pitfalls of Heteroscedastic Uncertainty Estimation with Probabilistic Neural Networks](https://arxiv.org/abs/2203.09168). *ICLR 2022.* Source of the beta-NLL loss used in the earlier N-BEATS prototype's confidence head, meant to fix a variance-collapse failure where plain Gaussian NLL let the model shrink predicted confidence to nearly the same value for every candle instead of learning which ones were actually harder to predict — a 130-run check found it didn't reliably work. Kept here as the historical record of what was tried; whether confidence estimation is worth reattempting for any of the five current candidates is an open question in the PRD, not a settled part of the rebuild.
 
 ### Part B — Trade execution
 

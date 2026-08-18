@@ -1,146 +1,221 @@
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any, cast
 
 import numpy as np
-import polars as pl
 import torch
-from loguru import logger
-from tabulate import tabulate
-from torch import Tensor
+import torch.nn as nn
+from sklearn.model_selection import TimeSeriesSplit  # pyright: ignore[reportMissingTypeStubs] -- sklearn ships no type stubs (sklearn/model_selection/__init__.py)
 from torch.utils.data import DataLoader, TensorDataset
-
-from fart.constants import TIMESTAMP
-from fart.features.calculate_technical_indicators import calculate_technical_indicators
-from fart.features.sort_and_deduplicate_candles import sort_and_deduplicate_candles
-from fart.model.device import get_device
-from fart.model.nbeats import NBeatsNet
-from fart.model.nbeats_config import NBeatsConfig
-from fart.model.nbeats_dataset import build_return_windows
-from fart.model.nbeats_loss import beta_nll_loss
-from fart.model.nbeats_persistence import save_model
-from fart.model.train_test_split import train_test_split
-from fart.utils import get_candle_filepath, get_model_filepath
+from tqdm import tqdm
 
 
-def prepare_training_data(
-    data_dir: Path,
-    market: str,
-    interval: str,
-    months: Optional[int] = 6,
-) -> Tuple[pl.DataFrame, pl.DataFrame, pl.Series, pl.Series]:
-    filepath = get_candle_filepath(data_dir, market, interval)
+def build_model(num_lags: int, hidden_width: int) -> nn.Module:
+    """
+    Build a small feed-forward regression model: two ReLU hidden layers
+    over a window of `num_lags` past values, predicting the next value.
 
-    if not filepath.exists():
-        raise FileNotFoundError(
-            f"No candle data found at '{filepath}'. Run 'fart download' first."
-        )
+    Parameters
+    ----------
+    - num_lags (int): Width of the input window (matches the lag window
+      size produced by `prepare_datasets.py::prepare_datasets`).
+    - hidden_width (int): Width of each hidden layer.
 
-    df = pl.read_csv(filepath)
-    df = sort_and_deduplicate_candles(df)
+    Returns
+    -------
+    - nn.Module: An untrained model.
 
-    if months is not None:
-        max_timestamp = df[TIMESTAMP].max()
-        assert isinstance(max_timestamp, int)
-        cutoff = max_timestamp - months * 30 * 24 * 60 * 60 * 1000
-        df = df.filter(pl.col(TIMESTAMP) >= cutoff)
-
-    df = calculate_technical_indicators(df)
-    df = df.fill_nan(None).drop_nulls()
-
-    return train_test_split(df)
-
-
-def train(
-    assets_dir: Path,
-    artifacts_dir: Path,
-    interval: str,
-    market: str,
-    months: Optional[int] = 6,
-    config: Optional[NBeatsConfig] = None,
-    device: Optional[torch.device] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
-    config = config or NBeatsConfig()
-    device = device or get_device()
-
-    X_train, X_test, y_train, y_test = prepare_training_data(
-        assets_dir, market, interval, months
-    )
-    shapes = {
-        "X_train": X_train.shape,
-        "X_test": X_test.shape,
-        "y_train": y_train.shape,
-        "y_test": y_test.shape,
-    }
-    table = tabulate(shapes.items())
-    logger.info(f"\n\n{table}\n")
-
-    n_train = y_train.shape[0]
-    close_prices = pl.concat([y_train, y_test])
-    X_all, y_all = build_return_windows(close_prices, config.lookback)
-
-    n_train_windows = max(0, n_train - config.lookback - 1)
-    X_train_windows, y_train_windows = X_all[:n_train_windows], y_all[:n_train_windows]
-    X_test_windows = X_all[n_train_windows:]
-
-    model = NBeatsNet(config).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-
-    train_loader = DataLoader(
-        TensorDataset(X_train_windows, y_train_windows),
-        batch_size=config.batch_size,
-        shuffle=True,
+    """
+    return nn.Sequential(
+        nn.Linear(num_lags, hidden_width),
+        nn.ReLU(),
+        nn.Linear(hidden_width, hidden_width),
+        nn.ReLU(),
+        nn.Linear(hidden_width, 1),
     )
 
+
+def train_model(
+    build_model_fn: Callable[[], nn.Module],
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    batch_size: int,
+    learning_rate: float,
+    num_epochs: int,
+    num_splits: int = 5,
+    max_train_size: int | None = None,
+) -> tuple[nn.Module, list[dict[str, float]]]:
+    """
+    Fit a model on `x_train`/`y_train`, using time-series cross-validation
+    to get a robustness signal before committing to a single training run.
+
+    A fresh model is built (via `build_model_fn`) and trained for each of
+    `num_splits` expanding-window folds (`sklearn.model_selection.TimeSeriesSplit`
+    -- chronological, not random/shuffled, since shuffled k-fold would leak
+    future data into training on time series). Reusing one model across
+    folds would leak weights/optimizer state forward across time, which is
+    why a fresh model is required per fold. After folds, a final model is
+    trained on the complete `x_train`/`y_train` and returned -- CV is a
+    diagnostic on top of training, not a replacement for it. No summary is
+    logged between the CV folds and the final pass; `cv_results` is the
+    only reporting -- plot `train_loss` against `val_loss` per fold/epoch
+    to check for overfitting (diverging curves) yourself.
+
+    Parameters
+    ----------
+    - build_model_fn (Callable[[], nn.Module]): Zero-arg factory returning
+      an untrained model, called once per fold plus once for the final
+      training pass.
+    - x_train (np.ndarray): Training windows, shape (n, num_lags).
+    - y_train (np.ndarray): Training targets, shape (n,).
+    - batch_size (int): Minibatch size.
+    - learning_rate (float): Adam optimizer learning rate.
+    - num_epochs (int): Number of training epochs per fold and for the
+      final pass.
+    - n_splits (int): Number of CV folds. `1` disables CV entirely (only
+      the final pass runs, `cv_results` is empty) -- useful for fast
+      tests/iteration even though the default runs CV.
+    - max_train_size (Optional[int]): Caps each fold's training window to
+      a fixed size (rolling window) instead of the default expanding
+      window. Expanding folds are bigger later, which confounds "more
+      data" with "more recent data"; a fixed size isolates recency.
+
+    Returns
+    -------
+    - Tuple[nn.Module, list[dict[str, float]]]: The model trained on all of
+      `x_train`/`y_train`, and `cv_results` -- one record per (fold, epoch)
+      with `fold`, `epoch`, `train_loss`, `val_loss` (empty list if
+      `n_splits == 1`), suitable for plotting a train-vs-validation
+      learning curve per fold.
+
+    """
+    results: list[dict[str, float]] = []
+    num_fit_passes = (num_splits if num_splits > 1 else 0) + 1
+    progress_bar = tqdm(total=num_epochs * num_fit_passes)
+
+    if num_splits > 1:
+        splitter = TimeSeriesSplit(n_splits=num_splits, max_train_size=max_train_size)
+        folds = splitter.split(x_train)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType] -- TimeSeriesSplit.split is untyped upstream (sklearn ships no type stubs)
+        for fold, (train_idx, val_idx) in enumerate(folds, start=1):
+            progress_bar.set_description(f"Fold {fold}/{num_splits}")  # pyright: ignore[reportUnknownMemberType] -- tqdm.set_description is untyped upstream (tqdm/std.py)
+            _, history = _fit(
+                model=build_model_fn(),
+                x_train=x_train[train_idx],
+                y_train=y_train[train_idx],
+                batch_size=batch_size,
+                learning_rate=learning_rate,
+                num_epochs=num_epochs,
+                progress_bar=progress_bar,
+                x_val=x_train[val_idx],
+                y_val=y_train[val_idx],
+            )
+            for record in history:
+                results.append({**record, "fold": float(fold)})
+
+    progress_bar.set_description("Full model")  # pyright: ignore[reportUnknownMemberType] -- tqdm.set_description is untyped upstream (tqdm/std.py)
+    model, _ = _fit(
+        model=build_model_fn(),
+        x_train=x_train,
+        y_train=y_train,
+        batch_size=batch_size,
+        learning_rate=learning_rate,
+        num_epochs=num_epochs,
+        progress_bar=progress_bar,
+    )
+    progress_bar.close()
+
+    return model, results
+
+
+def _fit(
+    model: nn.Module,
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    batch_size: int,
+    learning_rate: float,
+    num_epochs: int,
+    progress_bar: tqdm[Any],
+    x_val: np.ndarray | None = None,
+    y_val: np.ndarray | None = None,
+) -> tuple[nn.Module, list[dict[str, float]]]:
+    """
+    Fit `model` on `x_train`/`y_train`, advancing the shared `progress_bar`
+    by one step per epoch. If `x_val`/`y_val` are given, each epoch's
+    history record also carries `val_loss` -- the same loss function
+    evaluated on the held-out fold, directly comparable to `train_loss` to
+    spot overfitting (`history` is `[]` when they're omitted, since
+    nothing consumes an unvalidated fit's per-epoch history).
+
+    """
+    train_dataloader = init_dataloader(
+        x=x_train,
+        y=y_train,
+        batch_size=batch_size,
+    )
+    loss_fn = nn.MSELoss()
+    optimizer = init_optimizer(
+        model=model,
+        learning_rate=learning_rate,
+    )
+
+    x_val_tensor = (
+        torch.tensor(x_val, dtype=torch.float32) if x_val is not None else None
+    )
+    y_val_tensor = (
+        torch.tensor(y_val, dtype=torch.float32) if y_val is not None else None
+    )
+
+    history: list[dict[str, float]] = []
     model.train()
-    for epoch in range(config.epochs):
+    for epoch in range(num_epochs):
         epoch_loss = 0.0
-        for X_batch, y_batch in train_loader:
-            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+        for x_batch, y_batch in train_dataloader:
             optimizer.zero_grad()
-            output = model(X_batch)
-            mu, log_sigma = output.unbind(-1)
-            loss = beta_nll_loss(mu, y_batch, log_sigma, config.beta_nll)
-            loss.backward()  # pyright: ignore[reportUnknownMemberType] -- Tensor.backward is untyped upstream (torch/_tensor.py)
+            output = model(x_batch).squeeze(-1)
+            loss = loss_fn(output, y_batch)
+            loss.backward()
             optimizer.step()  # pyright: ignore[reportUnknownMemberType] -- Adam.step is untyped upstream (torch/optim/adam.py)
-            epoch_loss += loss.item() * X_batch.shape[0]
+            epoch_loss += loss.item() * x_batch.shape[0]
+        train_loss = epoch_loss / len(x_train)
 
-        logger.info(
-            f"Epoch {epoch + 1}/{config.epochs}: "
-            f"loss={epoch_loss / len(X_train_windows):.6f}"
-        )
+        if x_val_tensor is not None and y_val_tensor is not None:
+            model.eval()
+            with torch.no_grad():
+                val_output = model(x_val_tensor).squeeze(-1)
+                val_loss = loss_fn(val_output, y_val_tensor).item()
+            model.train()
+            history.append(
+                {
+                    "epoch": float(epoch + 1),
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                }
+            )
 
-    test_loader = DataLoader(
-        TensorDataset(X_test_windows), batch_size=config.batch_size, shuffle=False
+        progress_bar.update(1)  # pyright: ignore[reportUnknownMemberType] -- tqdm.update is untyped upstream (tqdm/std.py)
+
+    return model, history
+
+
+def init_dataloader(
+    x: np.ndarray,
+    y: np.ndarray,
+    batch_size: int,
+) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
+    return cast(
+        DataLoader[tuple[torch.Tensor, torch.Tensor]],
+        DataLoader(
+            TensorDataset(
+                torch.tensor(x, dtype=torch.float32),
+                torch.tensor(y, dtype=torch.float32),
+            ),
+            batch_size=batch_size,
+            shuffle=True,
+        ),
     )
 
-    model.eval()
-    mu_batches: List[Tensor] = []
-    log_sigma_batches: List[Tensor] = []
-    with torch.no_grad():
-        for (X_batch,) in test_loader:
-            X_batch = X_batch.to(device)
-            output = model(X_batch)
-            mu, log_sigma = output.unbind(-1)
-            mu_batches.append(mu.cpu())
-            log_sigma_batches.append(log_sigma.cpu())
 
-    magnitudes = torch.cat(mu_batches).numpy()
-    confidences = (1 / (1 + torch.cat(log_sigma_batches).exp())).numpy()
-
-    results = {
-        "test candles": len(magnitudes),
-        "device": str(device),
-        "magnitude mean": f"{magnitudes.mean():.5f}",
-        "magnitude std": f"{magnitudes.std():.5f}",
-        "confidence mean": f"{confidences.mean():.5f}",
-    }
-    table = tabulate(results.items())
-    logger.info(f"\n\n{table}\n")
-
-    timestamp = datetime.now(timezone.utc)
-    model_path = get_model_filepath(artifacts_dir, market, interval, timestamp)
-    save_model(model.cpu(), config, model_path)
-    logger.info(f"Saved model to {model_path}")
-
-    return magnitudes, confidences
+def init_optimizer(
+    model: nn.Module,
+    learning_rate: float,
+) -> torch.optim.Optimizer:
+    return torch.optim.Adam(model.parameters(), lr=learning_rate)
