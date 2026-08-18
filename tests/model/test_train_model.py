@@ -57,7 +57,7 @@ def test_train_model_reduces_loss() -> None:
         batch_size=16,
         learning_rate=0.05,
         num_epochs=50,
-        n_splits=1,
+        num_splits=1,
     )
 
     loss_after = mse(trained)
@@ -71,7 +71,7 @@ def test_train_model_cv_returns_per_fold_per_epoch_history() -> None:
     x = rng.normal(size=(40, 2)).astype(np.float32)
     y = rng.normal(size=40).astype(np.float32)
     num_epochs = 3
-    n_splits = 3
+    num_splits = 3
 
     _, cv_results = train_model(
         build_model_fn=lambda: nn.Linear(2, 1),
@@ -80,10 +80,10 @@ def test_train_model_cv_returns_per_fold_per_epoch_history() -> None:
         batch_size=8,
         learning_rate=0.01,
         num_epochs=num_epochs,
-        n_splits=n_splits,
+        num_splits=num_splits,
     )
 
-    assert len(cv_results) == n_splits * num_epochs
+    assert len(cv_results) == num_splits * num_epochs
     folds = {record["fold"] for record in cv_results}
     assert folds == {1.0, 2.0, 3.0}
     for fold in folds:
@@ -92,14 +92,7 @@ def test_train_model_cv_returns_per_fold_per_epoch_history() -> None:
         )
         assert epochs == [1.0, 2.0, 3.0]
     for record in cv_results:
-        assert set(record.keys()) == {
-            "fold",
-            "epoch",
-            "train_loss",
-            "val_rmse",
-            "val_mae",
-            "val_accuracy",
-        }
+        assert set(record.keys()) == {"fold", "epoch", "train_loss", "val_loss"}
 
 
 def test_train_model_cv_builds_a_fresh_model_per_fold() -> None:
@@ -121,7 +114,7 @@ def test_train_model_cv_builds_a_fresh_model_per_fold() -> None:
         batch_size=8,
         learning_rate=0.01,
         num_epochs=2,
-        n_splits=3,
+        num_splits=3,
     )
 
     # 3 folds + 1 final pass on the complete training set.

@@ -132,7 +132,7 @@ def train(
         batch_size=batch_size,
         learning_rate=learning_rate,
         num_epochs=num_epochs,
-        n_splits=n_splits,
+        num_splits=n_splits,
     )
 
     (

@@ -4,14 +4,9 @@ from typing import Any, cast
 import numpy as np
 import torch
 import torch.nn as nn
-from loguru import logger
-from sklearn.metrics import mean_absolute_error, root_mean_squared_error  # pyright: ignore[reportMissingTypeStubs, reportUnknownVariableType] -- sklearn ships no type stubs (sklearn/metrics/__init__.py)
 from sklearn.model_selection import TimeSeriesSplit  # pyright: ignore[reportMissingTypeStubs] -- sklearn ships no type stubs (sklearn/model_selection/__init__.py)
-from tabulate import tabulate
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
-
-from fart.model.evaluate_model import calculate_accuracy
 
 
 def build_model(num_lags: int, hidden_width: int) -> nn.Module:
@@ -46,7 +41,7 @@ def train_model(
     batch_size: int,
     learning_rate: float,
     num_epochs: int,
-    n_splits: int = 5,
+    num_splits: int = 5,
     max_train_size: int | None = None,
 ) -> tuple[nn.Module, list[dict[str, float]]]:
     """
@@ -54,13 +49,16 @@ def train_model(
     to get a robustness signal before committing to a single training run.
 
     A fresh model is built (via `build_model_fn`) and trained for each of
-    `n_splits` expanding-window folds (`sklearn.model_selection.TimeSeriesSplit`
+    `num_splits` expanding-window folds (`sklearn.model_selection.TimeSeriesSplit`
     -- chronological, not random/shuffled, since shuffled k-fold would leak
     future data into training on time series). Reusing one model across
     folds would leak weights/optimizer state forward across time, which is
     why a fresh model is required per fold. After folds, a final model is
     trained on the complete `x_train`/`y_train` and returned -- CV is a
-    diagnostic on top of training, not a replacement for it.
+    diagnostic on top of training, not a replacement for it. No summary is
+    logged between the CV folds and the final pass; `cv_results` is the
+    only reporting -- plot `train_loss` against `val_loss` per fold/epoch
+    to check for overfitting (diverging curves) yourself.
 
     Parameters
     ----------
@@ -85,20 +83,20 @@ def train_model(
     -------
     - Tuple[nn.Module, list[dict[str, float]]]: The model trained on all of
       `x_train`/`y_train`, and `cv_results` -- one record per (fold, epoch)
-      with `fold`, `epoch`, `train_loss`, `val_rmse`, `val_mae`,
-      `val_accuracy` (empty list if `n_splits == 1`), suitable for plotting
-      a train-vs-validation learning curve per fold.
+      with `fold`, `epoch`, `train_loss`, `val_loss` (empty list if
+      `n_splits == 1`), suitable for plotting a train-vs-validation
+      learning curve per fold.
 
     """
-    cv_results: list[dict[str, float]] = []
-    num_fit_passes = (n_splits if n_splits > 1 else 0) + 1
+    results: list[dict[str, float]] = []
+    num_fit_passes = (num_splits if num_splits > 1 else 0) + 1
     progress_bar = tqdm(total=num_epochs * num_fit_passes)
 
-    if n_splits > 1:
-        splitter = TimeSeriesSplit(n_splits=n_splits, max_train_size=max_train_size)
-        fold_summaries: list[list[object]] = []
+    if num_splits > 1:
+        splitter = TimeSeriesSplit(n_splits=num_splits, max_train_size=max_train_size)
         folds = splitter.split(x_train)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType] -- TimeSeriesSplit.split is untyped upstream (sklearn ships no type stubs)
         for fold, (train_idx, val_idx) in enumerate(folds, start=1):
+            progress_bar.set_description(f"Fold {fold}/{num_splits}")  # pyright: ignore[reportUnknownMemberType] -- tqdm.set_description is untyped upstream (tqdm/std.py)
             _, history = _fit(
                 model=build_model_fn(),
                 x_train=x_train[train_idx],
@@ -111,24 +109,9 @@ def train_model(
                 y_val=y_train[val_idx],
             )
             for record in history:
-                cv_results.append({**record, "fold": float(fold)})
-            last = history[-1]
-            fold_summaries.append(
-                [
-                    fold,
-                    len(train_idx),
-                    len(val_idx),
-                    round(last["val_rmse"], 6),
-                    round(last["val_mae"], 6),
-                    round(last["val_accuracy"], 2),
-                ]
-            )
-        table = tabulate(
-            fold_summaries,
-            headers=["Fold", "n_train", "n_val", "val_rmse", "val_mae", "val_accuracy"],
-        )
-        logger.info(f"\n\n{table}\n")
+                results.append({**record, "fold": float(fold)})
 
+    progress_bar.set_description("Full model")  # pyright: ignore[reportUnknownMemberType] -- tqdm.set_description is untyped upstream (tqdm/std.py)
     model, _ = _fit(
         model=build_model_fn(),
         x_train=x_train,
@@ -140,7 +123,7 @@ def train_model(
     )
     progress_bar.close()
 
-    return model, cv_results
+    return model, results
 
 
 def _fit(
@@ -157,9 +140,10 @@ def _fit(
     """
     Fit `model` on `x_train`/`y_train`, advancing the shared `progress_bar`
     by one step per epoch. If `x_val`/`y_val` are given, each epoch's
-    history record also carries validation RMSE/MAE/accuracy (`history` is
-    `[]` when they're omitted, since nothing consumes an unvalidated fit's
-    per-epoch history).
+    history record also carries `val_loss` -- the same loss function
+    evaluated on the held-out fold, directly comparable to `train_loss` to
+    spot overfitting (`history` is `[]` when they're omitted, since
+    nothing consumes an unvalidated fit's per-epoch history).
 
     """
     train_dataloader = init_dataloader(
@@ -176,6 +160,9 @@ def _fit(
     x_val_tensor = (
         torch.tensor(x_val, dtype=torch.float32) if x_val is not None else None
     )
+    y_val_tensor = (
+        torch.tensor(y_val, dtype=torch.float32) if y_val is not None else None
+    )
 
     history: list[dict[str, float]] = []
     model.train()
@@ -190,23 +177,17 @@ def _fit(
             epoch_loss += loss.item() * x_batch.shape[0]
         train_loss = epoch_loss / len(x_train)
 
-        if x_val_tensor is not None and y_val is not None:
+        if x_val_tensor is not None and y_val_tensor is not None:
             model.eval()
             with torch.no_grad():
-                val_pred = model(x_val_tensor).squeeze(-1).numpy()
+                val_output = model(x_val_tensor).squeeze(-1)
+                val_loss = loss_fn(val_output, y_val_tensor).item()
             model.train()
-            val_rmse = float(root_mean_squared_error(y_val, val_pred))
-            val_mae = float(mean_absolute_error(y_val, val_pred))  # pyright: ignore[reportUnknownArgumentType] -- mean_absolute_error's return is untyped upstream (sklearn ships no type stubs)
-            val_accuracy = calculate_accuracy(
-                val_pred.reshape(-1, 1), y_val.reshape(-1, 1)
-            )
             history.append(
                 {
                     "epoch": float(epoch + 1),
                     "train_loss": train_loss,
-                    "val_rmse": val_rmse,
-                    "val_mae": val_mae,
-                    "val_accuracy": val_accuracy,
+                    "val_loss": val_loss,
                 }
             )
 
