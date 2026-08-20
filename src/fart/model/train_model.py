@@ -1,12 +1,9 @@
 from collections.abc import Callable
-from typing import Any, cast
+from typing import cast
 
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.model_selection import (  # pyright: ignore[reportMissingTypeStubs] -- sklearn ships no type stubs (sklearn/model_selection/__init__.py)
-    TimeSeriesSplit,
-)
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
@@ -18,148 +15,63 @@ def train_model(
     batch_size: int,
     learning_rate: float,
     num_epochs: int,
-    num_splits: int = 5,
-    max_train_size: int | None = None,
-) -> tuple[nn.Module, list[dict[str, float]]]:
-    """
-    Fit a model on `x_train`/`y_train`, using time-series cross-validation
-    to get a robustness signal before committing to a single training run.
-
-    A fresh model is built (via `build_model_fn`) and trained for each of
-    `num_splits` expanding-window folds (`sklearn.model_selection.TimeSeriesSplit`
-    -- chronological, not random/shuffled, since shuffled k-fold would leak
-    future data into training on time series). Reusing one model across
-    folds would leak weights/optimizer state forward across time, which is
-    why a fresh model is required per fold. After folds, a final model is
-    trained on the complete `x_train`/`y_train` and returned -- CV is a
-    diagnostic on top of training, not a replacement for it. No summary is
-    logged between the CV folds and the final pass; `cv_results` is the
-    only reporting -- plot `train_loss` against `val_loss` per fold/epoch
-    to check for overfitting (diverging curves) yourself.
-
-    Parameters
-    ----------
-    - build_model_fn (Callable[[], nn.Module]): Zero-arg factory returning
-      an untrained model, called once per fold plus once for the final
-      training pass.
-    - x_train (np.ndarray): Training windows, shape (n, num_lags).
-    - y_train (np.ndarray): Training targets, shape (n,).
-    - batch_size (int): Minibatch size.
-    - learning_rate (float): Adam optimizer learning rate.
-    - num_epochs (int): Number of training epochs per fold and for the
-      final pass.
-    - n_splits (int): Number of CV folds. `1` disables CV entirely (only
-      the final pass runs, `cv_results` is empty) -- useful for fast
-      tests/iteration even though the default runs CV.
-    - max_train_size (Optional[int]): Caps each fold's training window to
-      a fixed size (rolling window) instead of the default expanding
-      window. Expanding folds are bigger later, which confounds "more
-      data" with "more recent data"; a fixed size isolates recency.
-
-    Returns
-    -------
-    - Tuple[nn.Module, list[dict[str, float]]]: The model trained on all of
-      `x_train`/`y_train`, and `cv_results` -- one record per (fold, epoch)
-      with `fold`, `epoch`, `train_loss`, `val_loss` (empty list if
-      `n_splits == 1`), suitable for plotting a train-vs-validation
-      learning curve per fold.
-
-    """
-    results: list[dict[str, float]] = []
-    num_fit_passes = (num_splits if num_splits > 1 else 0) + 1
-    progress_bar = tqdm(total=num_epochs * num_fit_passes)
-
-    if num_splits > 1:
-        splitter = TimeSeriesSplit(n_splits=num_splits, max_train_size=max_train_size)
-        folds = splitter.split(x_train)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType] -- TimeSeriesSplit.split is untyped upstream (sklearn ships no type stubs)
-        for fold, (train_idx, val_idx) in enumerate(folds, start=1):
-            progress_bar.set_description(f"Fold {fold}/{num_splits}")  # pyright: ignore[reportUnknownMemberType] -- tqdm.set_description is untyped upstream (tqdm/std.py)
-            _, history = _fit(
-                model=build_model_fn(),
-                x_train=x_train[train_idx],
-                y_train=y_train[train_idx],
-                batch_size=batch_size,
-                learning_rate=learning_rate,
-                num_epochs=num_epochs,
-                progress_bar=progress_bar,
-                x_val=x_train[val_idx],
-                y_val=y_train[val_idx],
-            )
-            for record in history:
-                results.append({**record, "fold": float(fold)})
-
-    progress_bar.set_description("Full model")  # pyright: ignore[reportUnknownMemberType] -- tqdm.set_description is untyped upstream (tqdm/std.py)
-    model, _ = _fit(
-        model=build_model_fn(),
-        x_train=x_train,
-        y_train=y_train,
-        batch_size=batch_size,
-        learning_rate=learning_rate,
-        num_epochs=num_epochs,
-        progress_bar=progress_bar,
-    )
-    progress_bar.close()
-
-    return model, results
-
-
-def _fit(
-    model: nn.Module,
-    x_train: np.ndarray,
-    y_train: np.ndarray,
-    batch_size: int,
-    learning_rate: float,
-    num_epochs: int,
-    progress_bar: tqdm[Any],
     x_val: np.ndarray | None = None,
     y_val: np.ndarray | None = None,
 ) -> tuple[nn.Module, list[dict[str, float]]]:
     """
-    Fit `model` on `x_train`/`y_train`, advancing the shared `progress_bar`
-    by one step per epoch. If `x_val`/`y_val` are given, each epoch's
-    history record also carries `val_loss` -- the same loss function
-    evaluated on the held-out fold, directly comparable to `train_loss` to
-    spot overfitting (`history` is `[]` when they're omitted, since
-    nothing consumes an unvalidated fit's per-epoch history).
+    Fit a model (built via `build_model_fn`) on `x_train`/`y_train` for
+    `num_epochs`.
+
+    If `x_val`/`y_val` are given, each epoch's loss is also evaluated
+    against them and recorded in `history` alongside `train_loss`, to spot
+    overfitting (a validation loss that diverges from the training loss).
+    `history` is `[]` when they're omitted, since nothing consumes an
+    unvalidated fit's per-epoch history.
+
+    Parameters
+    ----------
+    - build_model_fn (Callable[[], nn.Module]): Zero-arg factory returning
+      an untrained model.
+    - x_train (np.ndarray): Training windows, shape (n_train, num_lags).
+    - y_train (np.ndarray): Training targets, shape (n_train,).
+    - batch_size (int): Minibatch size.
+    - learning_rate (float): Adam optimizer learning rate.
+    - num_epochs (int): Number of training epochs.
+    - x_val (Optional[np.ndarray]): Held-out validation windows, same
+      shape convention as `x_train`. Pass alongside `y_val` to get a
+      per-epoch train-vs-validation loss history.
+    - y_val (Optional[np.ndarray]): Held-out validation targets, paired
+      with `x_val`.
+
+    Returns
+    -------
+    - Tuple[nn.Module, list[dict[str, float]]]: The trained model, and
+      `history` -- one record per epoch with `epoch`, `train_loss`, and
+      (if `x_val`/`y_val` were given) `val_loss`, suitable for plotting a
+      train-vs-validation learning curve.
 
     """
-    train_dataloader = init_dataloader(
-        x=x_train,
-        y=y_train,
-        batch_size=batch_size,
-    )
+    model = build_model_fn()
+    train_dataloader = init_dataloader(x=x_train, y=y_train, batch_size=batch_size)
     loss_fn = nn.MSELoss()
-    optimizer = init_optimizer(
-        model=model,
-        learning_rate=learning_rate,
-    )
-
-    x_val_tensor = (
-        torch.tensor(x_val, dtype=torch.float32) if x_val is not None else None
-    )
-    y_val_tensor = (
-        torch.tensor(y_val, dtype=torch.float32) if y_val is not None else None
-    )
+    optimizer = init_optimizer(model=model, learning_rate=learning_rate)
 
     history: list[dict[str, float]] = []
-    model.train()
-    for epoch in range(num_epochs):
-        epoch_loss = 0.0
-        for x_batch, y_batch in train_dataloader:
-            optimizer.zero_grad()
-            output = model(x_batch).squeeze(-1)
-            loss = loss_fn(output, y_batch)
-            loss.backward()
-            optimizer.step()  # pyright: ignore[reportUnknownMemberType] -- Adam.step is untyped upstream (torch/optim/adam.py)
-            epoch_loss += loss.item() * x_batch.shape[0]
-        train_loss = epoch_loss / len(x_train)
+    for epoch in tqdm(range(num_epochs), desc="Training"):  # pyright: ignore[reportUnknownMemberType] -- tqdm's __init__ overloads are untyped upstream (tqdm/std.py)
+        train_loss = _train_one_epoch(
+            model=model,
+            dataloader=train_dataloader,
+            optimizer=optimizer,
+            loss_fn=loss_fn,
+        )
 
-        if x_val_tensor is not None and y_val_tensor is not None:
-            model.eval()
-            with torch.no_grad():
-                val_output = model(x_val_tensor).squeeze(-1)
-                val_loss = loss_fn(val_output, y_val_tensor).item()
-            model.train()
+        if x_val is not None and y_val is not None:
+            val_loss = _validate(
+                model=model,
+                x_val=x_val,
+                y_val=y_val,
+                loss_fn=loss_fn,
+            )
             history.append(
                 {
                     "epoch": float(epoch + 1),
@@ -168,9 +80,78 @@ def _fit(
                 }
             )
 
-        progress_bar.update(1)  # pyright: ignore[reportUnknownMemberType] -- tqdm.update is untyped upstream (tqdm/std.py)
-
     return model, history
+
+
+def _train_one_epoch(
+    model: nn.Module,
+    dataloader: DataLoader[tuple[torch.Tensor, torch.Tensor]],
+    optimizer: torch.optim.Optimizer,
+    loss_fn: nn.Module,
+) -> float:
+    """
+    Run one training epoch over `dataloader`, updating `model`'s weights
+    in place.
+
+    Parameters
+    ----------
+    - model (nn.Module): Model to train, updated in place.
+    - dataloader (DataLoader[tuple[torch.Tensor, torch.Tensor]]): Minibatches
+      of `(x_batch, y_batch)`.
+    - optimizer (torch.optim.Optimizer): Optimizer stepping `model`'s
+      parameters.
+    - loss_fn (nn.Module): Loss criterion.
+
+    Returns
+    -------
+    - float: The epoch's mean per-sample loss.
+
+    """
+    model.train()
+    total_loss = 0.0
+    total_samples = 0
+    for x_batch, y_batch in dataloader:
+        optimizer.zero_grad(set_to_none=True)
+        output = model(x_batch).squeeze(-1)
+        loss = loss_fn(output, y_batch)
+        loss.backward()
+        optimizer.step()  # pyright: ignore[reportUnknownMemberType] -- Adam.step is untyped upstream (torch/optim/adam.py)
+        total_loss += loss.item() * x_batch.shape[0]
+        total_samples += x_batch.shape[0]
+
+    return total_loss / total_samples
+
+
+@torch.no_grad()  # pyright: ignore[reportUntypedFunctionDecorator] -- torch.no_grad's decorator overload is untyped upstream (torch/autograd/grad_mode.py)
+def _validate(
+    model: nn.Module,
+    x_val: np.ndarray,
+    y_val: np.ndarray,
+    loss_fn: nn.Module,
+) -> float:
+    """
+    Evaluate `model` against a held-out validation set, without updating
+    weights.
+
+    Parameters
+    ----------
+    - model (nn.Module): Model to evaluate.
+    - x_val (np.ndarray): Validation windows.
+    - y_val (np.ndarray): Validation targets, paired with `x_val`.
+    - loss_fn (nn.Module): Loss criterion, same one used for training so
+      `train_loss`/`val_loss` stay directly comparable.
+
+    Returns
+    -------
+    - float: The validation loss.
+
+    """
+    model.eval()
+    x_val_tensor = torch.tensor(x_val, dtype=torch.float32)
+    y_val_tensor = torch.tensor(y_val, dtype=torch.float32)
+    output = model(x_val_tensor).squeeze(-1)
+
+    return loss_fn(output, y_val_tensor).item()
 
 
 def init_dataloader(
@@ -178,6 +159,29 @@ def init_dataloader(
     y: np.ndarray,
     batch_size: int,
 ) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
+    """
+    Wrap `x`/`y` in a shuffled `DataLoader` of `(x_batch, y_batch)` tensor
+    pairs, for minibatch training.
+
+    Shuffling here is minibatch order, not the time series itself: `x`/`y`
+    are already fixed, chronologically-built lag windows confined to one
+    split (see `prepare_datasets.py::train_test_split`), so reordering
+    which examples land in which minibatch doesn't leak future data --
+    it just avoids the optimizer (and `BatchNorm1d`) seeing the same
+    temporally-correlated run of windows every epoch.
+
+    Parameters
+    ----------
+    - x (np.ndarray): Input windows.
+    - y (np.ndarray): Targets, paired with `x`.
+    - batch_size (int): Minibatch size.
+
+    Returns
+    -------
+    - DataLoader[tuple[torch.Tensor, torch.Tensor]]: Yields shuffled
+      `(x_batch, y_batch)` tensor pairs each epoch.
+
+    """
     return cast(
         DataLoader[tuple[torch.Tensor, torch.Tensor]],
         DataLoader(
@@ -195,4 +199,18 @@ def init_optimizer(
     model: nn.Module,
     learning_rate: float,
 ) -> torch.optim.Optimizer:
+    """
+    Build an Adam optimizer over `model`'s parameters.
+
+    Parameters
+    ----------
+    - model (nn.Module): Model whose parameters the optimizer will step.
+    - learning_rate (float): Adam learning rate.
+
+    Returns
+    -------
+    - torch.optim.Optimizer: An Adam optimizer bound to `model`'s
+      parameters.
+
+    """
     return torch.optim.Adam(model.parameters(), lr=learning_rate)

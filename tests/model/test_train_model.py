@@ -50,72 +50,41 @@ def test_train_model_reduces_loss() -> None:
 
     loss_before = mse(build_model_fn())
 
-    trained, cv_results = train_model(
+    trained, history = train_model(
         build_model_fn=build_model_fn,
         x_train=x,
         y_train=y,
         batch_size=16,
         learning_rate=0.05,
         num_epochs=50,
-        num_splits=1,
     )
 
     loss_after = mse(trained)
 
     assert loss_after < loss_before
-    assert cv_results == []
+    assert history == []
 
 
-def test_train_model_cv_returns_per_fold_per_epoch_history() -> None:
+def test_train_model_with_validation_returns_per_epoch_history() -> None:
     rng = np.random.default_rng(0)
     x = rng.normal(size=(40, 2)).astype(np.float32)
     y = rng.normal(size=40).astype(np.float32)
+    x_val = rng.normal(size=(10, 2)).astype(np.float32)
+    y_val = rng.normal(size=10).astype(np.float32)
     num_epochs = 3
-    num_splits = 3
 
-    _, cv_results = train_model(
+    _, history = train_model(
         build_model_fn=lambda: nn.Linear(2, 1),
         x_train=x,
         y_train=y,
+        x_val=x_val,
+        y_val=y_val,
         batch_size=8,
         learning_rate=0.01,
         num_epochs=num_epochs,
-        num_splits=num_splits,
     )
 
-    assert len(cv_results) == num_splits * num_epochs
-    folds = {record["fold"] for record in cv_results}
-    assert folds == {1.0, 2.0, 3.0}
-    for fold in folds:
-        epochs = sorted(
-            record["epoch"] for record in cv_results if record["fold"] == fold
-        )
-        assert epochs == [1.0, 2.0, 3.0]
-    for record in cv_results:
-        assert set(record.keys()) == {"fold", "epoch", "train_loss", "val_loss"}
-
-
-def test_train_model_cv_builds_a_fresh_model_per_fold() -> None:
-    call_count = 0
-
-    def build_model_fn() -> nn.Module:
-        nonlocal call_count
-        call_count += 1
-        return nn.Linear(2, 1)
-
-    rng = np.random.default_rng(0)
-    x = rng.normal(size=(40, 2)).astype(np.float32)
-    y = rng.normal(size=40).astype(np.float32)
-
-    train_model(
-        build_model_fn=build_model_fn,
-        x_train=x,
-        y_train=y,
-        batch_size=8,
-        learning_rate=0.01,
-        num_epochs=2,
-        num_splits=3,
-    )
-
-    # 3 folds + 1 final pass on the complete training set.
-    assert call_count == 4
+    assert len(history) == num_epochs
+    assert [record["epoch"] for record in history] == [1.0, 2.0, 3.0]
+    for record in history:
+        assert set(record.keys()) == {"epoch", "train_loss", "val_loss"}
