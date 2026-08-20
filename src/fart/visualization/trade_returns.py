@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import StrMethodFormatter
 
-from fart.constants import HONOLULU_BLUE
+from fart.constants import BLACK, HONOLULU_BLUE
 from fart.visualization.diverging_bar_chart import plot_diverging_bars
 
 
@@ -36,6 +36,9 @@ def plot_trade_returns(
 
     _, ax_capital = plt.subplots(  # pyright: ignore[reportUnknownMemberType] -- pyplot.subplots' **fig_kw is untyped upstream
         figsize=(16, 4), constrained_layout=True
+    )
+    ax_capital.axhline(  # pyright: ignore[reportUnknownMemberType] -- Axes.axhline's **kwargs is untyped upstream
+        initial_capital, color=BLACK, linestyle="--", linewidth=1
     )
     ax_capital.plot(  # pyright: ignore[reportUnknownMemberType] -- Axes.plot's **kwargs is untyped upstream
         trade_number, capital, color=HONOLULU_BLUE, linewidth=1.2
