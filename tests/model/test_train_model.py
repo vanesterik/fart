@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import torch
 from torch import nn
@@ -36,22 +38,19 @@ def test_train_model_reduces_loss() -> None:
 
     loss_fn = nn.MSELoss()
 
-    def build_model_fn() -> nn.Module:
-        # Reseeded on every call so the "before" model measured here and
-        # the model train_model() builds internally start from identical
-        # weights -- build_model_fn is a factory, not a shared instance.
-        torch.manual_seed(0)
-        return nn.Linear(3, 1)
-
     def mse(m: nn.Module) -> float:
         with torch.no_grad():
             pred = m(torch.tensor(x)).squeeze(-1)
             return loss_fn(pred, torch.tensor(y)).item()
 
-    loss_before = mse(build_model_fn())
+    torch.manual_seed(0)
+    model = nn.Linear(3, 1)
+    # train_model fits `model` in place, so snapshot its initial weights
+    # here to measure "before" loss independently of the trained model.
+    loss_before = mse(copy.deepcopy(model))
 
     trained, history = train_model(
-        build_model_fn=build_model_fn,
+        model=model,
         x_train=x,
         y_train=y,
         batch_size=16,
@@ -74,7 +73,7 @@ def test_train_model_with_validation_returns_per_epoch_history() -> None:
     num_epochs = 3
 
     _, history = train_model(
-        build_model_fn=lambda: nn.Linear(2, 1),
+        model=nn.Linear(2, 1),
         x_train=x,
         y_train=y,
         x_val=x_val,

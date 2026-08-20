@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from typing import cast
 
 import numpy as np
@@ -9,7 +8,7 @@ from tqdm import tqdm
 
 
 def train_model(
-    build_model_fn: Callable[[], nn.Module],
+    model: nn.Module,
     x_train: np.ndarray,
     y_train: np.ndarray,
     batch_size: int,
@@ -19,8 +18,7 @@ def train_model(
     y_val: np.ndarray | None = None,
 ) -> tuple[nn.Module, list[dict[str, float]]]:
     """
-    Fit a model (built via `build_model_fn`) on `x_train`/`y_train` for
-    `num_epochs`.
+    Fit `model` on `x_train`/`y_train` for `num_epochs`, in place.
 
     If `x_val`/`y_val` are given, each epoch's loss is also evaluated
     against them and recorded in `history` alongside `train_loss`, to spot
@@ -30,8 +28,7 @@ def train_model(
 
     Parameters
     ----------
-    - build_model_fn (Callable[[], nn.Module]): Zero-arg factory returning
-      an untrained model.
+    - model (nn.Module): Untrained model to fit, updated in place.
     - x_train (np.ndarray): Training windows, shape (n_train, num_lags).
     - y_train (np.ndarray): Training targets, shape (n_train,).
     - batch_size (int): Minibatch size.
@@ -51,7 +48,6 @@ def train_model(
       train-vs-validation learning curve.
 
     """
-    model = build_model_fn()
     train_dataloader = init_dataloader(x=x_train, y=y_train, batch_size=batch_size)
     loss_fn = nn.MSELoss()
     optimizer = init_optimizer(model=model, learning_rate=learning_rate)
