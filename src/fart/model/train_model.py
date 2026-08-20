@@ -21,10 +21,10 @@ def train_model(
     Fit `model` on `x_train`/`y_train` for `num_epochs`, in place.
 
     If `x_val`/`y_val` are given, each epoch's loss is also evaluated
-    against them and recorded in `history` alongside `train_loss`, to spot
-    overfitting (a validation loss that diverges from the training loss).
-    `history` is `[]` when they're omitted, since nothing consumes an
-    unvalidated fit's per-epoch history.
+    against them and recorded in `loss_history` alongside `train_loss`, to
+    spot overfitting (a validation loss that diverges from the training
+    loss). `loss_history` is `[]` when they're omitted, since nothing
+    consumes an unvalidated fit's per-epoch loss history.
 
     Parameters
     ----------
@@ -43,16 +43,16 @@ def train_model(
     Returns
     -------
     - Tuple[nn.Module, list[dict[str, float]]]: The trained model, and
-      `history` -- one record per epoch with `epoch`, `train_loss`, and
-      (if `x_val`/`y_val` were given) `val_loss`, suitable for plotting a
-      train-vs-validation learning curve.
+      `loss_history` -- one record per epoch with `epoch`, `train_loss`,
+      and (if `x_val`/`y_val` were given) `val_loss`, suitable for
+      plotting a train-vs-validation learning curve.
 
     """
     train_dataloader = init_dataloader(x=x_train, y=y_train, batch_size=batch_size)
     loss_fn = nn.MSELoss()
     optimizer = init_optimizer(model=model, learning_rate=learning_rate)
 
-    history: list[dict[str, float]] = []
+    loss_history: list[dict[str, float]] = []
     for epoch in tqdm(range(num_epochs), desc="Training"):  # pyright: ignore[reportUnknownMemberType] -- tqdm's __init__ overloads are untyped upstream (tqdm/std.py)
         train_loss = _train_one_epoch(
             model=model,
@@ -68,7 +68,7 @@ def train_model(
                 y_val=y_val,
                 loss_fn=loss_fn,
             )
-            history.append(
+            loss_history.append(
                 {
                     "epoch": float(epoch + 1),
                     "train_loss": train_loss,
@@ -76,7 +76,7 @@ def train_model(
                 }
             )
 
-    return model, history
+    return model, loss_history
 
 
 def _train_one_epoch(

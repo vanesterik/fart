@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from fart.constants import IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN
 
 
-def learning_curve_chart(history: list[dict[str, float]]) -> None:
+def learning_curve_chart(loss_history: list[dict[str, float]]) -> None:
     """
     Plot a train-vs-validation learning curve (loss per epoch), to check
     for overfitting -- a validation line drifting away from its training
@@ -12,19 +12,19 @@ def learning_curve_chart(history: list[dict[str, float]]) -> None:
 
     Parameters
     ----------
-    - history (list[dict[str, float]]): Per-epoch records from
+    - loss_history (list[dict[str, float]]): Per-epoch records from
       `fart/model/train_model.py::train_model`, each with `epoch`,
       `train_loss`, `val_loss`. Raises if empty -- pass a model trained
-      with `x_val`/`y_val` given to get per-epoch history.
+      with `x_val`/`y_val` given to get a per-epoch loss history.
 
     """
-    if not history:
+    if not loss_history:
         raise ValueError(
-            "history is empty -- call train_model() with x_val/y_val given "
-            "to get per-epoch history to plot."
+            "loss_history is empty -- call train_model() with x_val/y_val "
+            "given to get a per-epoch loss history to plot."
         )
 
-    records = sorted(history, key=lambda record: record["epoch"])
+    records = sorted(loss_history, key=lambda record: record["epoch"])
     epochs = [record["epoch"] for record in records]
     train_loss = [record["train_loss"] for record in records]
     val_loss = [record["val_loss"] for record in records]
