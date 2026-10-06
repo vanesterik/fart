@@ -18,7 +18,7 @@ class ModelBuilder(Protocol):
 
         class CNNConfig(BaseModel):
             in_features: int
-            num_channels: int
+            hidden_channels: int
             kernel_size: int = 3
 
         class CNNBuilder:
