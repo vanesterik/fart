@@ -23,7 +23,7 @@ This is a solo research project, and it's mid-refactor — the code you'll find 
 - **Part B — Trade execution.** Not yet started. Deliberately sequenced *after* Part A, and framed as a risk-management problem first (position sizing, stop-loss, kill switch, failure recovery) and a Bitvavo-connector problem second. The typed exchange wrapper (`fart/core/exchange.py`) and live terminal dashboard (`fart/core/dashboard.py`) exist as early scaffolding but aren't wired into a working entrypoint yet — `fart/core/broker.py` and `fart/model/predict_model.py`, which would tie them together, are still empty stubs.
   See the [Problem Framing Canvas](docs/product/part-b-trade-execution-system.md) and [PRD](docs/product/part-b-trade-execution-system-prd.md).
 
-What actually works today, end to end, is downloading candle data and training the signal-generation model on it (see Usage below) — everything downstream of a trained model (predictions, order placement, the live dashboard) is upcoming Part B work, not yet runnable.
+What actually works today is downloading candle data with the CLI and training/evaluating the candidate signal-generation models on it in the notebooks (see Usage below) — everything downstream of a trained model (predictions, order placement, the live dashboard) is upcoming Part B work, not yet runnable.
 
 ## Installation
 
@@ -35,20 +35,19 @@ uv sync
 
 ## Usage
 
-Two commands work end to end today: downloading candle data and training the signal-generation model on it.
+One command works end to end today: downloading candle data.
 
 ```bash
 uv run fart download --assets-dir assets --market BTC-EUR --interval 1h
-uv run fart train --assets-dir assets --market BTC-EUR --interval 1h --num-lags 50
 ```
 
 `download` backfills OHLCV candle data from Bitvavo into a per-market/interval CSV cache under `assets_dir`, resuming from the last cached candle on each run instead of re-fetching from scratch. It requires `BITVAVO_API_KEY` / `BITVAVO_API_SECRET` in a `.env` file.
 
-`train` loads that cached data, computes the target signal (`Magnitude`, signed percent-change), and fits a small feed-forward regression model (see [Project Status](#project-status)) on sliding lag windows, logging directional accuracy/RMSE on both splits and saving a versioned checkpoint to `artifacts/`.
+There is no `train` command. Training and evaluation run from the notebooks, one per candidate architecture: `notebooks/2.0-kve-data-analysis-mlp.ipynb` (MLP) and `notebooks/2.1-kve-data-analysis-cnn.ipynb` (CNN). Each loads the cached data, computes the target signal (`Magnitude`, signed percent-change), builds sliding lag windows with a chronological 60/20/20 train/val/test split, fits its model (see [Project Status](#project-status)), and reports directional accuracy, RMSE and MAE. Neither saves a checkpoint yet.
 
 Run `uv run fart --help` for the full set of options.
 
-Everything past a trained checkpoint — turning predictions into orders, the live terminal dashboard, pause/resume/kill controls — is Part B and not implemented yet.
+Everything past a trained model — turning predictions into orders, the live terminal dashboard, pause/resume/kill controls — is Part B and not implemented yet.
 
 ## Planned Trade Execution Flow
 
@@ -143,8 +142,14 @@ The project follows the [cookiecutter data science project template](https://dri
         │
         ├── model          <- Part A's regression pipeline.
         │   ├── prepare_datasets.py   <- Loads candles, computes Magnitude, builds lag windows + split.
-        │   ├── train_model.py        <- Builds and fits the feed-forward regression model.
-        │   ├── evaluate_model.py     <- Directional accuracy + RMSE on train/test.
+        │   ├── builder.py            <- ModelBuilder Protocol every architecture's builder satisfies.
+        │   ├── blocks.py             <- Reusable linear/conv blocks.
+        │   ├── mlp_config.py         <- MLP hyperparameters.
+        │   ├── mlp_builder.py        <- Assembles the MLP from its config.
+        │   ├── cnn_config.py         <- CNN hyperparameters.
+        │   ├── cnn_builder.py        <- Assembles the CNN from its config.
+        │   ├── train_model.py        <- Fits an already-built model; records per-epoch loss history.
+        │   ├── evaluate_model.py     <- Directional accuracy, RMSE and MAE on train/test.
         │   ├── persist_model.py      <- Checkpoint save/load.
         │   └── predict_model.py      <- Empty stub; not yet connected to a signal path.
         │
