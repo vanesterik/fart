@@ -27,7 +27,7 @@ class CNNBuilder:
         channel dimension `Conv1d` expects, `config.num_layers` repeats
         of `conv_block` (each preserving sequence length via
         `padding="same"`), global average pooling down to one value per
-        channel, then a final `Linear` to a scalar output.
+        channel, then a final `Linear` to `config.out_features` outputs.
 
         Global pooling means the output shape never depends on
         `config.in_features`/`config.kernel_size`/`config.num_layers`
@@ -49,15 +49,15 @@ class CNNBuilder:
             layers.append(
                 conv_block(
                     in_channels=in_channels,
-                    out_channels=self._config.num_channels,
+                    out_channels=self._config.hidden_channels,
                     kernel_size=self._config.kernel_size,
                     dropout_rate=self._config.dropout_rate,
                 )
             )
-            in_channels = self._config.num_channels
+            in_channels = self._config.hidden_channels
 
         layers.append(nn.AdaptiveAvgPool1d(1))
         layers.append(nn.Flatten())
-        layers.append(nn.Linear(in_channels, 1))
+        layers.append(nn.Linear(in_channels, self._config.out_features))
 
         return nn.Sequential(*layers)
