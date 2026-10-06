@@ -7,7 +7,7 @@ from fart.model.mlp_config import MLPConfig
 
 
 def test_mlp_builder_layer_count_and_output_shape() -> None:
-    config = MLPConfig(num_lags=10, num_blocks=2, num_neurons=4)
+    config = MLPConfig(in_features=10, num_layers=2, hidden_features=4)
     model = MLPBuilder(config).build()
     model.eval()
 
@@ -19,13 +19,22 @@ def test_mlp_builder_layer_count_and_output_shape() -> None:
 
 
 def test_mlp_config_dropout_default() -> None:
-    config = MLPConfig(num_lags=5, num_blocks=1, num_neurons=3)
+    config = MLPConfig(in_features=5, num_layers=1, hidden_features=3)
 
-    assert config.dropout == 0.2
+    assert config.dropout_rate == 0.2
+
+
+def test_mlp_builder_out_features() -> None:
+    config = MLPConfig(in_features=5, hidden_features=3, num_layers=1, out_features=2)
+    model = MLPBuilder(config).build()
+    model.eval()
+
+    output = model(torch.zeros(1, 5))
+    assert output.shape == (1, 2)
 
 
 def test_mlp_builder_dropout_override() -> None:
-    config = MLPConfig(num_lags=5, num_blocks=1, num_neurons=3, dropout=0.5)
+    config = MLPConfig(in_features=5, num_layers=1, hidden_features=3, dropout_rate=0.5)
     model = MLPBuilder(config).build()
 
     dropout_layers = [
@@ -36,7 +45,7 @@ def test_mlp_builder_dropout_override() -> None:
 
 
 def test_mlp_builder_build_is_independent_per_call() -> None:
-    config = MLPConfig(num_lags=5, num_blocks=1, num_neurons=3)
+    config = MLPConfig(in_features=5, num_layers=1, hidden_features=3)
     builder = MLPBuilder(config)
 
     first = builder.build()
@@ -56,7 +65,7 @@ def test_mlp_builder_build_is_independent_per_call() -> None:
 
 
 def test_mlp_builder_satisfies_model_builder_protocol() -> None:
-    config = MLPConfig(num_lags=5, num_blocks=1, num_neurons=3)
+    config = MLPConfig(in_features=5, num_layers=1, hidden_features=3)
     builder: ModelBuilder = MLPBuilder(config)
 
     assert isinstance(builder.build(), nn.Module)

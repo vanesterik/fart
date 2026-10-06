@@ -5,7 +5,7 @@ from fart.model.blocks import conv_block, linear_block
 
 
 def test_linear_block_layer_types_and_dims() -> None:
-    block = linear_block(in_features=3, out_features=5, dropout=0.2)
+    block = linear_block(in_features=3, out_features=5, dropout_rate=0.2)
 
     children = list(block.children())
     assert [type(layer) for layer in children] == [
@@ -23,7 +23,7 @@ def test_linear_block_layer_types_and_dims() -> None:
 
 
 def test_linear_block_output_shape() -> None:
-    block = linear_block(in_features=3, out_features=5, dropout=0.2)
+    block = linear_block(in_features=3, out_features=5, dropout_rate=0.2)
     block.eval()
 
     output = block(torch.zeros(1, 3))
@@ -32,7 +32,7 @@ def test_linear_block_output_shape() -> None:
 
 
 def test_conv_block_layer_types_and_dims() -> None:
-    block = conv_block(in_channels=1, out_channels=4, kernel_size=3, dropout=0.2)
+    block = conv_block(in_channels=1, out_channels=4, kernel_size=3, dropout_rate=0.2)
 
     children = list(block.children())
     assert [type(layer) for layer in children] == [
@@ -51,7 +51,7 @@ def test_conv_block_layer_types_and_dims() -> None:
 
 
 def test_conv_block_output_shape_preserves_length() -> None:
-    block = conv_block(in_channels=1, out_channels=4, kernel_size=3, dropout=0.2)
+    block = conv_block(in_channels=1, out_channels=4, kernel_size=3, dropout_rate=0.2)
     block.eval()
 
     output = block(torch.zeros(1, 1, 10))

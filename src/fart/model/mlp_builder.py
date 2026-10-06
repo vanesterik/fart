@@ -23,10 +23,10 @@ class MLPBuilder:
 
     def build(self) -> nn.Module:
         """
-        Assemble a fresh, untrained MLP: `config.num_blocks` repeats of
-        `linear_block`, narrowing/widening from `config.num_lags` to
-        `config.num_neurons`, followed by a final `Linear` to a scalar
-        output.
+        Assemble a fresh, untrained MLP: `config.num_layers` repeats of
+        `linear_block`, narrowing/widening from `config.in_features` to
+        `config.hidden_features`, followed by a final `Linear` to
+        `config.out_features` outputs.
 
         Each call constructs new `nn.Linear`/`nn.BatchNorm1d` layers (and
         therefore freshly initialized weights) -- calling `build()` twice
@@ -38,18 +38,18 @@ class MLPBuilder:
 
         """
         layers: list[nn.Module] = []
-        prev_dim = self._config.num_lags
+        prev_features = self._config.in_features
 
-        for _ in range(self._config.num_blocks):
+        for _ in range(self._config.num_layers):
             layers.append(
                 linear_block(
-                    in_features=prev_dim,
-                    out_features=self._config.num_neurons,
-                    dropout=self._config.dropout,
+                    in_features=prev_features,
+                    out_features=self._config.hidden_features,
+                    dropout_rate=self._config.dropout_rate,
                 )
             )
-            prev_dim = self._config.num_neurons
+            prev_features = self._config.hidden_features
 
-        layers.append(nn.Linear(prev_dim, 1))
+        layers.append(nn.Linear(prev_features, self._config.out_features))
 
         return nn.Sequential(*layers)
