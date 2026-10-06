@@ -25,14 +25,6 @@ The repo is mid-refactor. Part A (signal generation) is the active work; Part B 
 - **Part A** — refactor the signal-generation model from classification (six classic ML classifiers predicting up/down/hold) to regression, to capture trade magnitude vs. cost instead of a bare direction. Five sequence-aware architectures (MLP, CNN, GRU, N-BEATS, time-series transformer) are screened on the same metrics before the best performer(s) go through full backtest validation — see the PRD for the two-stage plan.
 - **Part B** — build the trade execution system as a risk-management problem first (position sizing, stop-loss, kill switch, failure recovery) and a connector-building problem second, deliberately sequenced after Part A's signals are trustworthy.
 
-## Documentation conventions
-
-Never reference "superpowers" in code, file paths, or directory structure — e.g. no `docs/superpowers/...`. Specs and design docs live under `docs/specs/`.
-
-## Library and framework syntax
-
-Before writing or extending code against a library whose idiomatic patterns evolve over time (Typer, Pydantic, FastAPI, scikit-learn, etc.), use the `context7` MCP tool to check current syntax rather than relying on possibly-outdated recall. Also match the style of any existing sibling function/command in the same file (e.g. `fart/cli.py`'s Typer commands) rather than introducing a second, inconsistent pattern.
-
 ## Commands
 
 Dependency management is via `uv` (see `uv.lock`). There is no `Makefile` — it was removed as redundant with `uv run ...` (documented directly below) and the `lefthook` pre-commit automation. Run these directly.
@@ -54,13 +46,16 @@ There is no `fart train` CLI command — it was removed, and the train/evaluate 
 
 Pre-commit hooks are managed by `lefthook` (`.lefthook.yml`): notebooks get their outputs stripped, Python files get `ruff format` + `ruff check --fix`, then `pyright`, on every commit.
 
-## Development workflow
+## Development workflow and pull requests
 
-For non-trivial work, ask before creating a feature branch, then work directly on it in this working directory (`git checkout -b <name>`) — do not use a git worktree or isolated agent workspace for this. Koen wants to review and test changes himself between steps in the same directory he's already using, which a separate worktree checkout makes inconvenient.
+The general workflow and pull request flow come from the global `~/.claude/CLAUDE.md` (the `vanesterik/claude-config` repository). What's specific to this repository:
+
+- There's no CI. Lefthook runs `ruff` and `pyright` on each commit, and `uv run pytest` must pass before each task commit.
+- The repository allows rebase merging only and has `deleteBranchOnMerge` set, so only the local branch needs deleting after a merge.
 
 ## User stories / issue tracking
 
-User stories for this project are tracked as GitHub issues on the project board at https://github.com/users/vanesterik/projects/3. When asked to write a user story (or turn a piece of work into one), also create it as a GitHub issue in this repo and add it to that project board — don't just leave it as a local markdown file. Use the `gh` CLI, e.g.:
+User stories for this project are tracked as GitHub issues in `vanesterik/fart` on the project board at https://github.com/users/vanesterik/projects/3:
 
 ```bash
 gh issue create --repo vanesterik/fart --title "..." --body "..."
