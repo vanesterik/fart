@@ -24,13 +24,13 @@ class CNNBuilder:
     def build(self) -> nn.Module:
         """
         Assemble a fresh, untrained CNN: an `Unflatten` to add the
-        channel dimension `Conv1d` expects, `config.num_blocks` repeats
+        channel dimension `Conv1d` expects, `config.num_layers` repeats
         of `conv_block` (each preserving sequence length via
         `padding="same"`), global average pooling down to one value per
         channel, then a final `Linear` to a scalar output.
 
         Global pooling means the output shape never depends on
-        `config.num_lags`/`config.kernel_size`/`config.num_blocks`
+        `config.in_features`/`config.kernel_size`/`config.num_layers`
         combining awkwardly -- no manual output-length arithmetic.
 
         Each call constructs new `nn.Conv1d`/`nn.BatchNorm1d`/`nn.Linear`
@@ -42,16 +42,16 @@ class CNNBuilder:
         - nn.Module: An untrained `nn.Sequential` CNN.
 
         """
-        layers: list[nn.Module] = [nn.Unflatten(1, (1, self._config.num_lags))]
+        layers: list[nn.Module] = [nn.Unflatten(1, (1, self._config.in_features))]
         in_channels = 1
 
-        for _ in range(self._config.num_blocks):
+        for _ in range(self._config.num_layers):
             layers.append(
                 conv_block(
                     in_channels=in_channels,
                     out_channels=self._config.num_channels,
                     kernel_size=self._config.kernel_size,
-                    dropout=self._config.dropout,
+                    dropout_rate=self._config.dropout_rate,
                 )
             )
             in_channels = self._config.num_channels

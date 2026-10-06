@@ -7,7 +7,7 @@ from fart.model.cnn_config import CNNConfig
 
 
 def test_cnn_builder_layer_count_and_output_shape() -> None:
-    config = CNNConfig(num_lags=10, num_blocks=2, num_channels=4, kernel_size=3)
+    config = CNNConfig(in_features=10, num_layers=2, num_channels=4, kernel_size=3)
     model = CNNBuilder(config).build()
     model.eval()
 
@@ -20,14 +20,14 @@ def test_cnn_builder_layer_count_and_output_shape() -> None:
 
 
 def test_cnn_config_dropout_default() -> None:
-    config = CNNConfig(num_lags=5, num_blocks=1, num_channels=4, kernel_size=3)
+    config = CNNConfig(in_features=5, num_layers=1, num_channels=4, kernel_size=3)
 
-    assert config.dropout == 0.2
+    assert config.dropout_rate == 0.2
 
 
 def test_cnn_builder_dropout_override() -> None:
     config = CNNConfig(
-        num_lags=5, num_blocks=1, num_channels=4, kernel_size=3, dropout=0.5
+        in_features=5, num_layers=1, num_channels=4, kernel_size=3, dropout_rate=0.5
     )
     model = CNNBuilder(config).build()
 
@@ -39,7 +39,7 @@ def test_cnn_builder_dropout_override() -> None:
 
 
 def test_cnn_builder_build_is_independent_per_call() -> None:
-    config = CNNConfig(num_lags=5, num_blocks=1, num_channels=4, kernel_size=3)
+    config = CNNConfig(in_features=5, num_layers=1, num_channels=4, kernel_size=3)
     builder = CNNBuilder(config)
 
     first = builder.build()
@@ -59,14 +59,14 @@ def test_cnn_builder_build_is_independent_per_call() -> None:
 
 
 def test_cnn_builder_satisfies_model_builder_protocol() -> None:
-    config = CNNConfig(num_lags=5, num_blocks=1, num_channels=4, kernel_size=3)
+    config = CNNConfig(in_features=5, num_layers=1, num_channels=4, kernel_size=3)
     builder: ModelBuilder = CNNBuilder(config)
 
     assert isinstance(builder.build(), nn.Module)
 
 
-def test_cnn_builder_output_shape_independent_of_num_lags() -> None:
-    config = CNNConfig(num_lags=100, num_blocks=3, num_channels=8, kernel_size=5)
+def test_cnn_builder_output_shape_independent_of_in_features() -> None:
+    config = CNNConfig(in_features=100, num_layers=3, num_channels=8, kernel_size=5)
     model = CNNBuilder(config).build()
     model.eval()
 

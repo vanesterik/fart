@@ -17,7 +17,7 @@ class ModelBuilder(Protocol):
     transformer are separate, not-yet-started PRD stories):
 
         class CNNConfig(BaseModel):
-            num_lags: int
+            in_features: int
             num_channels: int
             kernel_size: int = 3
 
