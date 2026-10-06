@@ -13,22 +13,9 @@ class ModelBuilder(Protocol):
     produces the `model` passed to `train_model`, so adding a builder
     never requires changing `train_model.py`.
 
-    Future architecture sketch (not implemented here -- CNN/GRU/N-BEATS/
-    transformer are separate, not-yet-started PRD stories):
-
-        class CNNConfig(BaseModel):
-            in_features: int
-            hidden_channels: int
-            kernel_size: int = 3
-
-        class CNNBuilder:
-            def __init__(self, config: CNNConfig) -> None:
-                self._config = config
-
-            def build(self) -> nn.Module:
-                ...  # conv_block(...) from blocks.py, etc.
-
-    Swapping MLP for CNN at a call site then becomes
+    `MLPBuilder` (`mlp_builder.py`) and `CNNBuilder` (`cnn_builder.py`)
+    are the implementations so far; each takes its own typed config.
+    Swapping MLP for CNN at a call site is
     `model=CNNBuilder(cnn_config).build()` -- a config/builder choice, not
     a rewrite of `train_model` or the notebook's training call.
 

@@ -11,7 +11,8 @@ class CNNConfig(BaseModel):
       width passed as `num_lags` to `prepare_datasets`).
     - hidden_channels (int): Number of output channels for every block
       (fixed width, matching `MLPConfig.hidden_features`'s convention).
-    - out_features (int): Number of output features. Defaults to 1.
+    - out_features (int): Number of output features. Defaults to 1;
+      `train_model`/`evaluate_model` currently assume 1.
     - num_layers (int): Number of Conv1d->BatchNorm1d->ReLU->Dropout
       blocks.
     - kernel_size (int): Convolution kernel width, used by every block.
