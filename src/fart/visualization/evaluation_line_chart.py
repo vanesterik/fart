@@ -39,26 +39,38 @@ def evaluation_line_chart(
     test_x = np.arange(train_offset, train_offset + len(y_test))
 
     _, ax = plt.subplots(  # pyright: ignore[reportUnknownMemberType] -- pyplot.subplots' **fig_kw is untyped upstream
-        figsize=(14, 6), constrained_layout=True
+        figsize=(14, 6),
+        constrained_layout=True,
     )
     if y_train is not None:
         train_x = np.arange(len(y_train))
         ax.plot(  # pyright: ignore[reportUnknownMemberType] -- Axes.plot's **kwargs is untyped upstream
-            train_x, y_train, color=HONOLULU_BLUE, linewidth=1, label="Training data"
+            train_x,
+            y_train,
+            color=HONOLULU_BLUE,
+            linewidth=1,
+            label="Training data",
         )
         ax.axvline(  # pyright: ignore[reportUnknownMemberType] -- Axes.axvline's **kwargs is untyped upstream
-            train_offset - 0.5, color=BLACK, linestyle="-.", linewidth=1
+            train_offset - 0.5,
+            color=BLACK,
+            linestyle="-.",
+            linewidth=1,
         )
     ax.plot(  # pyright: ignore[reportUnknownMemberType] -- Axes.plot's **kwargs is untyped upstream
         test_x,
         y_test,
+        alpha=0.5,
         color=HONOLULU_BLUE,
         linewidth=1,
-        linestyle="--",
         label="Test data",
     )
     ax.plot(  # pyright: ignore[reportUnknownMemberType] -- Axes.plot's **kwargs is untyped upstream
-        test_x, y_pred, color=IMPERIAL_RED_MAIN, linewidth=1, label="Predicted data"
+        test_x,
+        y_pred,
+        color=IMPERIAL_RED_MAIN,
+        linewidth=1,
+        label="Predicted data",
     )
     ax.legend(loc="lower right")  # pyright: ignore[reportUnknownMemberType] -- Axes.legend's **kwargs is untyped upstream
     ax.set_title(  # pyright: ignore[reportUnknownMemberType] -- Axes.set_title's **kwargs is untyped upstream
