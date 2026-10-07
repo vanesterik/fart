@@ -134,3 +134,25 @@ def test_ccxt_exchange_builds_real_client_for_known_id() -> None:
     exchange = CcxtExchange(exchange_id="bitvavo")
 
     assert exchange.exchange_id == "bitvavo"
+
+
+def test_fetch_closed_candles_judges_closed_by_time_the_request_was_sent() -> None:
+    # The response arrives after the 1h candle's period ended, but the
+    # exchange answered before that: the candle was still forming then.
+    now = [2 * HOUR_MS - 1]
+
+    class SlowClient(StubClient):
+        def fetch_ohlcv(
+            self, symbol: str, timeframe: str, since: int, limit: int
+        ) -> list[list[float]]:
+            rows = super().fetch_ohlcv(symbol, timeframe, since, limit)
+            now[0] = 2 * HOUR_MS + 1
+            return rows
+
+    exchange = CcxtExchange(
+        client=SlowClient(rows=[_row(0), _row(HOUR_MS)]), clock=lambda: now[0]
+    )
+
+    candles = exchange.fetch_closed_candles("BTC/EUR", "1h", since_ms=0, limit=10)
+
+    assert [c.timestamp for c in candles] == [0]

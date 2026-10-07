@@ -47,9 +47,13 @@ class CcxtExchange:
     ) -> list[Candle]:
         self._validate(market, interval)
 
+        # Read the clock before the request: the response arrives after the
+        # rate limiter's wait and the network round trip, and a candle that
+        # was still forming when the exchange answered must not count as
+        # closed just because its period ended while the reply was in flight.
+        now_ms = self._clock()
         rows = self._client.fetch_ohlcv(market, interval, since=since_ms, limit=limit)
         interval_ms = ccxt.Exchange.parse_timeframe(interval) * 1000
-        now_ms = self._clock()
 
         candles = [
             Candle(

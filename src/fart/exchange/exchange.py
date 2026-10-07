@@ -26,5 +26,13 @@ class Exchange(Protocol):
         Return up to `limit` closed candles starting at `since_ms`, sorted
         by timestamp. The candle that is still forming is never included.
 
+        A batch can hold fewer than `limit` candles even when more history
+        exists: the exchange may cap the request (ccxt caps Bitvavo at
+        1440), and dropping the forming candle shortens the last batch. To
+        page through history, continue from the last returned timestamp
+        plus one interval, never from `since_ms + limit * interval`. An
+        empty list means nothing closed in that window -- a gap in the
+        exchange's history and "nothing newer has closed yet" look the same.
+
         """
         ...
