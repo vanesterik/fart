@@ -27,11 +27,13 @@ What actually works today is downloading candle data with the CLI and training/e
 
 ## Installation
 
-Use the following command to install the project:
+The project's commands run through [Task](https://taskfile.dev) and [uv](https://docs.astral.sh/uv/). With both installed (for example `mise use -g aqua:go-task/task`), install the project and its git hooks with:
 
 ```bash
-uv sync
+task setup
 ```
+
+`task --list` shows the other commands, such as `task check` to run every check the git hooks run.
 
 ## Usage
 
