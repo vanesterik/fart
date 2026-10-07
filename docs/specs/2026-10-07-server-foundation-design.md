@@ -108,7 +108,7 @@ src/fartt/server/
 
 - **Removed:**
   - `src/fartt/core/` (`exchange.py`, `dashboard.py`, `broker.py`). Nothing in `src`, `tests` or the notebooks imports it.
-  - From `pyproject.toml`: `python-bitvavo-api`, `rich` and `babel`. Only `dashboard.py` imports the last two, and Typer still pulls in `rich` itself.
+  - From `pyproject.toml`: `python-bitvavo-api`, `rich` and `babel`. Only `dashboard.py` imports the last two; Typer, which also pulled in `rich`, was replaced by argparse in story #51.
   - Entries in `constants.py` that only the dashboard used.
 - **`CLAUDE.md` rewritten:** the overview, current state, commands and architecture describe the MCP server, the exchange layer, the candle cache and the PRD instead of the Part A/B split. The notes on the model pipeline stay, because epic B builds on it.
 - **`README.md` rewritten:** the Part A/B framing and the planned execution state machine are replaced by the MCP architecture, setup (`uv sync`, `fartt download`, `.mcp.json`, permissions) and a link to the PRD. Research-source sections stay where they still apply: risk-control sources for epic D, model sources for epic B.
