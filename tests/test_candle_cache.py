@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 
 import pytest
@@ -202,3 +203,56 @@ def test_latest_on_missing_file_is_empty(tmp_path: Path) -> None:
     cache = _cache(FakeExchange([], now_ms=0), tmp_path)
 
     assert cache.latest(5) == []
+
+
+def test_update_drops_a_torn_last_line_and_refetches_it(tmp_path: Path) -> None:
+    # A hard kill mid-append leaves half a line and no trailing newline.
+    exchange = FakeExchange([candle(h) for h in range(4)], now_ms=4 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    _write(cache.filepath, [candle(0), candle(1)])
+    with cache.filepath.open("a") as file:
+        file.write(f"{2 * HOUR_MS},100.0,101")
+
+    assert cache.update() == 2
+    assert cache.latest(10) == [candle(h) for h in range(4)]
+
+
+def test_update_completes_a_valid_last_line_missing_its_newline(tmp_path: Path) -> None:
+    exchange = FakeExchange([candle(h) for h in range(3)], now_ms=3 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    _write(cache.filepath, [candle(0), candle(1)])
+    cache.filepath.write_text(cache.filepath.read_text().rstrip("\n"))
+
+    assert cache.update() == 1
+    assert cache.latest(10) == [candle(h) for h in range(3)]
+
+
+def test_update_completes_a_header_missing_its_newline(tmp_path: Path) -> None:
+    exchange = FakeExchange([candle(h) for h in range(2)], now_ms=2 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    cache.filepath.write_text(HEADER.rstrip("\n"))
+
+    assert cache.update() == 2
+    assert cache.filepath.read_text().splitlines()[0] == HEADER.rstrip("\n")
+    assert cache.latest(10) == [candle(0), candle(1)]
+
+
+def test_a_second_updater_waits_for_the_first(tmp_path: Path) -> None:
+    # `fartt download` and the MCP server share the file; two writers at
+    # once would append the same candles twice.
+    exchange = FakeExchange([candle(h) for h in range(5)], now_ms=5 * HOUR_MS)
+    first = _cache(exchange, tmp_path)
+    second = _cache(exchange, tmp_path)
+    updates = first.iter_update()
+    assert next(updates) == 2  # first is mid-update, holding the file
+
+    second_result: list[int] = []
+    waiter = threading.Thread(target=lambda: second_result.append(second.update()))
+    waiter.start()
+    waiter.join(timeout=0.3)
+    assert waiter.is_alive(), "second updater ran while the first held the file"
+
+    assert sum(updates) == 3
+    waiter.join(timeout=5)
+    assert second_result == [0]
+    assert _timestamps(first.filepath) == [h * HOUR_MS for h in range(5)]
