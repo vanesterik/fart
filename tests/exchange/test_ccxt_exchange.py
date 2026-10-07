@@ -1,8 +1,9 @@
 from typing import Any
 
+import ccxt
 import pytest
 
-from fartt.exchange import Candle, CcxtExchange
+from fartt.exchange import Candle, CcxtExchange, ExchangeUnavailable
 
 HOUR_MS = 3_600_000
 
@@ -10,19 +11,26 @@ HOUR_MS = 3_600_000
 class StubClient:
     """Stands in for a ccxt client: canned markets, timeframes and rows."""
 
-    def __init__(self, rows: list[list[float]] | None = None) -> None:
+    def __init__(
+        self, rows: list[list[float]] | None = None, error: Exception | None = None
+    ) -> None:
         self.timeframes = {"1m": "1m", "1h": "1h", "1d": "1d"}
         self.rows = rows or []
+        self.error = error
         self.load_markets_calls = 0
         self.fetch_calls: list[dict[str, Any]] = []
 
     def load_markets(self) -> dict[str, Any]:
+        if self.error is not None:
+            raise self.error
         self.load_markets_calls += 1
         return {"BTC/EUR": {}, "ETH/EUR": {}}
 
     def fetch_ohlcv(
         self, symbol: str, timeframe: str, since: int, limit: int
     ) -> list[list[float]]:
+        if self.error is not None:
+            raise self.error
         self.fetch_calls.append(
             {"symbol": symbol, "timeframe": timeframe, "since": since, "limit": limit}
         )
@@ -156,3 +164,30 @@ def test_fetch_closed_candles_judges_closed_by_time_the_request_was_sent() -> No
     candles = exchange.fetch_closed_candles("BTC/EUR", "1h", since_ms=0, limit=10)
 
     assert [c.timestamp for c in candles] == [0]
+
+
+def test_supported_intervals_lists_the_exchange_timeframes() -> None:
+    exchange = _exchange(StubClient(), now_ms=0)
+
+    assert exchange.supported_intervals() == ["1m", "1h", "1d"]
+
+
+def test_network_error_while_loading_markets_becomes_exchange_unavailable() -> None:
+    client = StubClient(error=ccxt.NetworkError("connection reset"))
+    exchange = _exchange(client, now_ms=0)
+
+    with pytest.raises(
+        ExchangeUnavailable, match="bitvavo.*connection reset"
+    ) as raised:
+        exchange.has_market("BTC/EUR")
+    assert isinstance(raised.value.__cause__, ccxt.NetworkError)
+
+
+def test_exchange_error_while_fetching_becomes_exchange_unavailable() -> None:
+    client = StubClient()
+    exchange = _exchange(client, now_ms=10 * HOUR_MS)
+    exchange.has_market("BTC/EUR")  # markets load fine
+    client.error = ccxt.ExchangeError("maintenance")
+
+    with pytest.raises(ExchangeUnavailable, match="maintenance"):
+        exchange.fetch_closed_candles("BTC/EUR", "1h", since_ms=0, limit=10)
