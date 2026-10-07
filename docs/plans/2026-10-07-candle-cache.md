@@ -6,7 +6,7 @@
 
 **Architecture:** `fartt.candle_cache.CandleCache` owns one market and interval's CSV file. `iter_update()` pages through closed candles from the `Exchange` interface, appends each batch to the CSV and yields its size. `update()` runs that to the end, and `latest(count)` returns the newest cached candles. `fartt download` builds a `CcxtExchange` and a `CandleCache` and wraps `iter_update()` in tqdm. `downloader.py` is deleted.
 
-**Tech Stack:** Python 3.11+, ccxt (through `fartt.exchange`), Typer, tqdm, tabulate, loguru, pytest, pyright (strict), uv, Task.
+**Tech Stack:** Python 3.11+, ccxt (through `fartt.exchange`), argparse, tqdm, tabulate, loguru, pytest, pyright (strict), uv, Task.
 
 **Spec:** `docs/specs/2026-10-07-server-foundation-design.md` (section "2. Candle cache and `fartt download`"), plus the two points the story #50 review left for this plan (below).
 
@@ -26,7 +26,7 @@
 - **Gap or present?** An empty batch from `fetch_closed_candles` can mean a gap in the exchange's history or that nothing newer has closed yet. The cache tells them apart with its own injectable clock: it pages only while `since_ms` is at or before the newest **closed** period's open time, `floor(now / interval) * interval - interval`. An empty batch inside that range is a gap, so it skips ahead one batch window (`since_ms += batch_limit * interval_ms`). The loop then ends once `since_ms` passes the present. If the two clocks disagree, the worst case is that the cache stops early, and the next update resumes from the file, since a skip never persists.
 - **Short batches and ccxt's 1440 cap.** The cache pages from the last returned timestamp plus one interval, never from `since_ms + limit * interval` (as the `Exchange` docstring now requires).
 - **A candle the exchange amends after it closes.** Each update starts by re-fetching the last cached candle (`since_ms` = its timestamp). If the exchange's version differs, the cache replaces the file's last line with it. That's the one in-place write, and it truncates only the final line. Re-fetching it never duplicates it, and it doesn't count as a new candle.
-- **`fartt download` on a single-command Typer app.** With one command and no callback, Typer runs that command as the whole CLI, so `fartt download` fails today with "Got unexpected extra argument (download)". An `@app.callback()` makes `download` a real subcommand, as the README and issue #51 use it.
+- **argparse replaces Typer.** The CLI's callers are the operator (`fartt download`) and Claude Code starting the server from `.mcp.json` (`fartt serve`, story #52); the agent itself calls MCP tools, never the CLI. The standard library covers two subcommands with a few options, and dropping Typer removes `typer` and `click` (and the last reason to keep `rich` once story #53 deletes the dashboard). It also ends a Typer quirk that breaks the documented command today: with one command and no callback, Typer runs that command as the whole CLI, so `fartt download` fails with "Got unexpected extra argument (download)". argparse subcommands have no such mode.
 
 ## Review Focus
 
@@ -34,7 +34,7 @@
 - **A gap longer than one batch window** (the exchange was down for days; ccxt asks Bitvavo for `[since, since + limit × interval)`, so such a window comes back empty): expect every candle after the gap to be fetched. Pinned in Task 1, `test_update_skips_gaps_longer_than_one_batch`.
 - **Running `update()` twice in a row with nothing new:** expect 0 new candles and a byte-identical file. Pinned in Task 1, `test_update_twice_adds_nothing_the_second_time`.
 - **An existing 1m cache of ~3 million rows:** resuming must not read the whole file to find the last candle. Pinned in Task 1, `test_update_reads_only_the_file_tail_to_resume` (asserts the tail reader reads a bounded number of bytes).
-- **`fartt download --market BTC-EUR`** (the old format, still in muscle memory): expect a clear error naming `BTC/EUR`, not a stack trace. Pinned in Task 2, `test_download_rejects_unknown_market_with_hint`.
+- **`fartt download --market BTC-EUR`** (the old format, still in muscle memory): expect a clear error naming `BTC/EUR` and exit code 2, not a stack trace. Pinned in Task 2, `test_download_rejects_unknown_market_with_hint`.
 
 ---
 
@@ -566,14 +566,15 @@ git commit -m "feat: add candle cache shared by download and the agent"
 ## Task 2: `fartt download` on the cache
 
 **Files:**
-- Modify: `src/fartt/cli.py`
+- Modify: `src/fartt/cli.py` (argparse instead of Typer)
+- Modify: `pyproject.toml`, `uv.lock` (`fartt = "fartt.cli:main"`; `typer` and `click` removed)
 - Delete: `src/fartt/downloader.py`, `tests/test_downloader.py`
 - Create: `tests/test_cli.py`
-- Modify: `CLAUDE.md`, `README.md` (download usage)
+- Modify: `CLAUDE.md`, `README.md` (download usage), `docs/specs/2026-10-07-server-foundation-design.md` (the Typer/`rich` sentence)
 
 **Interfaces:**
 - Consumes: `CandleCache`, `DEFAULT_HISTORY_START_MS` (Task 1); `fartt.exchange.CcxtExchange(exchange_id)` (story #50); `tests/fakes.py::FakeExchange`, `candle` (Task 1).
-- Produces: the CLI `fartt download [--exchange bitvavo] [--market BTC/EUR] [--interval 1d] [--assets-dir assets]`.
+- Produces: `fartt.cli.main(argv: Sequence[str] | None = None) -> None` and `fartt.cli.build_parser() -> argparse.ArgumentParser`, which story #52 extends with a `serve` subcommand; the CLI `fartt download [--exchange bitvavo] [--market BTC/EUR] [--interval 1d] [--assets-dir assets]`.
 
 - [ ] **Step 1: Write the failing CLI tests**
 
@@ -583,61 +584,66 @@ Create `tests/test_cli.py`:
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 from fartt import cli
 from tests.fakes import HOUR_MS, FakeExchange, candle
 
-runner = CliRunner()
-
 
 @pytest.fixture
-def fake_exchange(monkeypatch: pytest.MonkeyPatch) -> FakeExchange:
+def fake_exchange(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> FakeExchange:
     exchange = FakeExchange([candle(h) for h in range(3)], now_ms=3 * HOUR_MS)
     monkeypatch.setattr(cli, "CcxtExchange", lambda exchange_id: exchange)
     monkeypatch.setattr(cli, "DEFAULT_HISTORY_START_MS", 0)
+    monkeypatch.chdir(tmp_path)  # main() writes logs/cli.log relative to the cwd
     return exchange
 
 
 def test_download_is_a_subcommand(fake_exchange: FakeExchange, tmp_path: Path) -> None:
-    result = runner.invoke(
-        cli.app,
-        ["download", "--assets-dir", str(tmp_path), "--market", "BTC/EUR", "--interval", "1h"],
+    cli.main(
+        ["download", "--assets-dir", str(tmp_path), "--market", "BTC/EUR", "--interval", "1h"]
     )
 
-    assert result.exit_code == 0, result.output
     lines = (tmp_path / "BTC-EUR-1h.csv").read_text().splitlines()
     assert lines[0] == "Timestamp,Open,High,Low,Close,Volume"
     assert len(lines) == 4
 
 
 def test_download_rejects_unknown_market_with_hint(
-    fake_exchange: FakeExchange, tmp_path: Path
+    fake_exchange: FakeExchange, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    result = runner.invoke(
-        cli.app,
-        ["download", "--assets-dir", str(tmp_path), "--market", "BTC-EUR", "--interval", "1h"],
-    )
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main(
+            ["download", "--assets-dir", str(tmp_path), "--market", "BTC-EUR", "--interval", "1h"]
+        )
 
-    assert result.exit_code != 0
-    assert "BTC-EUR" in result.output
-    assert "BTC/EUR" in result.output
+    assert exit_info.value.code == 2
+    error = capsys.readouterr().err
+    assert "BTC-EUR" in error
+    assert "BTC/EUR" in error
     assert not (tmp_path / "BTC-EUR-1h.csv").exists()
+
+
+def test_no_command_prints_usage_and_fails(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main([])
+
+    assert exit_info.value.code == 2
+    assert "download" in capsys.readouterr().err
 ```
 
 Run: `uv run pytest tests/test_cli.py -q 2>&1 | tail -1`
-Expected: `2 failed` (`AttributeError: ... has no attribute 'CcxtExchange'` from the fixture).
+Expected: `1 failed, 2 errors` (the fixture fails because `fartt.cli` has no `CcxtExchange` yet, and `cli.main` doesn't exist).
 
-- [ ] **Step 2: Rewrite `cli.py`**
+- [ ] **Step 2: Rewrite `cli.py` with argparse and drop Typer**
 
 Replace `src/fartt/cli.py` with:
 
 ```python
+import argparse
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Annotated
 
-import typer
 from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 from tabulate import tabulate
@@ -646,62 +652,82 @@ from tqdm import tqdm
 from fartt.candle_cache import DEFAULT_HISTORY_START_MS, CandleCache
 from fartt.exchange import CcxtExchange
 
-app = typer.Typer(no_args_is_help=True)
-
 LOG_FORMAT = (
     "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
     "<level>{level: <8}</level> | "
     "<level>{message}</level>"
 )
 
-logger.remove()
-logger.add(sys.stderr, level="INFO", format=LOG_FORMAT)
-logger.add("logs/cli.log", rotation="1 MB", level="INFO", format=LOG_FORMAT)
 
-load_dotenv(find_dotenv())
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="fartt", description="Fartt: Financial Analysis Real Time Trading."
+    )
+    commands = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
+
+    download = commands.add_parser(
+        "download",
+        help="download closed candles into the local cache",
+        description="Download closed candles into the local cache, resuming where it left off.",
+    )
+    download.add_argument(
+        "--assets-dir",
+        type=Path,
+        default=Path("assets"),
+        help="folder the candle cache lives in (default: %(default)s)",
+    )
+    download.add_argument(
+        "--exchange", default="bitvavo", help="ccxt exchange id (default: %(default)s)"
+    )
+    download.add_argument(
+        "--market",
+        default="BTC/EUR",
+        help="market in ccxt's format, e.g. BTC/EUR (default: %(default)s)",
+    )
+    download.add_argument(
+        "--interval",
+        default="1d",
+        help="candle interval the exchange offers, e.g. 1m, 30m, 1h, 4h, 1d (default: %(default)s)",
+    )
+    return parser
 
 
-@app.callback()
-def main() -> None:
-    """Fartt: Financial Analysis Real Time Trading."""
-    # A callback makes every command a subcommand. Without it, Typer runs a
-    # lone command as the whole CLI and `fartt download` fails with
-    # "Got unexpected extra argument (download)".
+def main(argv: Sequence[str] | None = None) -> None:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    logger.remove()
+    logger.add(sys.stderr, level="INFO", format=LOG_FORMAT)
+    logger.add("logs/cli.log", rotation="1 MB", level="INFO", format=LOG_FORMAT)
+    load_dotenv(find_dotenv())
+
+    if args.command == "download":
+        _download(
+            parser,
+            assets_dir=args.assets_dir,
+            exchange=args.exchange,
+            market=args.market,
+            interval=args.interval,
+        )
 
 
-@app.command()
-def download(
-    assets_dir: Annotated[
-        str,
-        typer.Option(help="Folder the candle cache lives in."),
-    ] = "assets",
-    exchange: Annotated[
-        str,
-        typer.Option(help="ccxt exchange id (e.g., 'bitvavo')."),
-    ] = "bitvavo",
-    interval: Annotated[
-        str,
-        typer.Option(
-            help="Candle interval the exchange offers (e.g., '1m', '30m', '1h', '4h', '1d')."
-        ),
-    ] = "1d",
-    market: Annotated[
-        str,
-        typer.Option(help="Market in ccxt's format (e.g., 'BTC/EUR', 'ETH/EUR')."),
-    ] = "BTC/EUR",
+def _download(
+    parser: argparse.ArgumentParser,
+    assets_dir: Path,
+    exchange: str,
+    market: str,
+    interval: str,
 ) -> None:
-    """Download closed candles into the local cache, resuming where it left off."""
     client = CcxtExchange(exchange_id=exchange)
     if not client.has_market(market):
-        raise typer.BadParameter(
-            f"Market '{market}' not found on exchange '{exchange}'. "
-            "Markets use ccxt's format, e.g. 'BTC/EUR' rather than 'BTC-EUR'.",
-            param_hint="--market",
+        parser.error(
+            f"market '{market}' not found on exchange '{exchange}'. "
+            "Markets use ccxt's format, e.g. 'BTC/EUR' rather than 'BTC-EUR'."
         )
 
     cache = CandleCache(
         exchange=client,
-        assets_dir=Path(assets_dir),
+        assets_dir=assets_dir,
         market=market,
         interval=interval,
         history_start_ms=DEFAULT_HISTORY_START_MS,
@@ -720,8 +746,20 @@ def download(
 
 
 if __name__ == "__main__":
-    app()
+    main()
 ```
+
+In `pyproject.toml`, point the console script at `main`:
+
+```toml
+[project.scripts]
+fartt = "fartt.cli:main"
+```
+
+Then drop the CLI framework, which nothing else imports:
+
+Run: `uv remove typer click`
+Expected: both leave `pyproject.toml` and `uv.lock`.
 
 - [ ] **Step 3: Delete the old downloader and its test**
 
@@ -730,7 +768,10 @@ Run: `git rm -q src/fartt/downloader.py tests/test_downloader.py`
 - [ ] **Step 4: Run the CLI tests to verify they pass**
 
 Run: `uv run pytest tests/test_cli.py -q 2>&1 | tail -1`
-Expected: `2 passed`.
+Expected: `3 passed`.
+
+Run: `uv run fartt --help && uv run fartt download --help`
+Expected: usage listing the `download` command, then its four options with defaults.
 
 - [ ] **Step 5: Run it for real against Bitvavo**
 
@@ -760,18 +801,23 @@ Also in `CLAUDE.md`'s Architecture section, replace the `**`fartt/downloader.py`
 - **`fartt/exchange/`** — the `Exchange` Protocol (`has_market`, `fetch_closed_candles`), the `Candle` NamedTuple, and `CcxtExchange`, the only module that imports ccxt (default exchange `bitvavo`).
 ```
 
+In `docs/specs/2026-10-07-server-foundation-design.md` section 4, replace "Only `dashboard.py` imports the last two, and Typer still pulls in `rich` itself." with "Only `dashboard.py` imports the last two; Typer, which also pulled in `rich`, was replaced by argparse in story #51."
+
 In `README.md`'s Usage section, change the example command to `uv run fartt download --assets-dir assets --market BTC/EUR --interval 1h`, and remove any sentence saying the download needs `BITVAVO_API_KEY`/`BITVAVO_API_SECRET`.
 
 - [ ] **Step 7: Run the full check and commit**
 
 Run: `task check 2>&1 | grep -E "passed|errors,|All checks"`
-Expected: `All checks passed!`, `0 errors`, and `107 passed, 1 deselected` (111 from Task 1, plus 2 CLI tests, minus the 6 removed `test_downloader.py` tests).
+Expected: `All checks passed!`, `0 errors`, and `108 passed, 1 deselected` (111 from Task 1, plus 3 CLI tests, minus the 6 removed `test_downloader.py` tests).
+
+Run: `grep -rn "typer\|click" src tests pyproject.toml`
+Expected: no matches.
 
 Run: `grep -rn "python_bitvavo_api\|fartt.downloader" src tests`
 Expected: only `src/fartt/core/exchange.py` (removed in story #53).
 
 ```bash
-git add src/fartt/cli.py tests/test_cli.py CLAUDE.md README.md
+git add src/fartt/cli.py pyproject.toml uv.lock tests/test_cli.py CLAUDE.md README.md docs/specs/2026-10-07-server-foundation-design.md
 git commit -m "feat: download candles through the cache and exchange layer"
 ```
 
