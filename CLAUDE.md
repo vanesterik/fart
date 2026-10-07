@@ -27,7 +27,20 @@ The repo is mid-refactor. Part A (signal generation) is the active work; Part B 
 
 ## Commands
 
-Dependency management is via `uv` (see `uv.lock`). There is no `Makefile` — it was removed as redundant with `uv run ...` (documented directly below) and the `lefthook` pre-commit automation. Run these directly.
+The everyday commands are tasks in `Taskfile.yml`; `task --list` names them. `task setup` installs the project from `uv.lock` and wires up the git hooks, and `task check` (lint + typecheck + test) is the same command the pre-push hook runs, so the two cannot drift apart. `task` comes from the global `mise` setup (`mise use -g aqua:go-task/task`); it cannot install itself, so it is the one prerequisite `task setup` does not cover.
+
+```bash
+task setup                       # uv sync + install the lefthook hooks
+task check                       # lint + typecheck + test, as the pre-push gate runs them
+task lint                        # ruff format --check + ruff check, without writing
+task format                      # ruff format + ruff check --fix
+task typecheck                   # pyright (strict mode, src/ only — tests/ excluded)
+task test                        # pytest, offline
+task test:network                # the tests that call a live exchange API (deselected by default)
+task pre-commit                  # the pre-commit hook's checks over staged files
+```
+
+Everything below remains the direct route, and is what the Taskfile calls. Dependency management is via `uv` (see `uv.lock`), run from the repository root:
 
 ```bash
 uv sync                          # install dependencies
@@ -44,7 +57,7 @@ uv run pyright                   # type check (strict mode, src/ only — tests/
 
 There is no `fart train` CLI command — it was removed, and the train/evaluate pipeline (`prepare_datasets` → `MLPBuilder`/`CNNBuilder` → `train_model` → `evaluate_model`) is currently only exercised from `notebooks/2.0-kve-data-analysis-mlp.ipynb` and `notebooks/2.1-kve-data-analysis-cnn.ipynb`, not wired into any CLI entrypoint. Each notebook loads the cached CSV for a market/interval, sorts/deduplicates it, computes `Magnitude`, builds sliding lag windows via a chronological 60/20/20 train/val/test split (`train_size`/`val_size` on `prepare_datasets`), builds its model (`MLPBuilder(config).build()` or `CNNBuilder(config).build()`), fits it with `train_model` — a single fit against the validation split, no cross-validation (see "Current state" above) — and logs directional accuracy/RMSE/MAE via `evaluate_model`. Neither notebook calls `persist_model`, so no checkpoint is saved from this path currently; `predict_model.py` remains an empty stub regardless.
 
-Hooks are managed by `lefthook` (`.lefthook.yml`) and stand in for CI, which this project doesn't have. On every commit, notebooks get their outputs stripped, staged Python files get `ruff format` + `ruff check --fix`, then `pyright` and `pytest` run. On every push, the full suite runs on the whole repository (`ruff format --check .`, `ruff check .`, `pyright`, `pytest`), because pre-commit only sees staged files and a commit touching only `pyproject.toml`, `uv.lock` or `.mcp.json` would otherwise skip tests and type checks. `git push --no-verify` skips the gate for one push; use it deliberately, never by default. Tests marked `network` call a live exchange and are deselected by default; run them with `uv run pytest -m network`.
+Hooks are managed by `lefthook` (`.lefthook.yml`) and stand in for CI, which this project doesn't have. On every commit, notebooks get their outputs stripped, staged Python files get `ruff format` + `ruff check --fix`, then `pyright` and `pytest` run. On every push, `task check` runs the full suite on the whole repository (`ruff format --check .`, `ruff check .`, `pyright`, `pytest`), because pre-commit only sees staged files and a commit touching only `pyproject.toml`, `uv.lock` or `.mcp.json` would otherwise skip tests and type checks. `git push --no-verify` skips the gate for one push; use it deliberately, never by default. Tests marked `network` call a live exchange and are deselected by default; run them with `task test:network`.
 
 ## Development workflow and pull requests
 

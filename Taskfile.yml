@@ -1,0 +1,64 @@
+# Entrypoint for the project's everyday commands. Wraps uv's own commands rather
+# than restating them; see CLAUDE.md for the direct uv equivalents.
+#
+# The repository root is the uv project, so every command runs from here as a
+# plain `uv run` -- no `--directory` or `--project` needed.
+version: '3'
+
+output: prefixed
+
+tasks:
+  setup:
+    desc: Install the project from its lockfile and wire up the git hooks
+    cmds:
+      - uv sync
+      - uv run lefthook install
+
+  check:
+    desc: Run every check the gates run
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: test
+
+  lint:
+    desc: Check formatting and lint, without writing
+    prefix: lint
+    cmds:
+      - uv run ruff format --check .
+      - uv run ruff check .
+
+  format:
+    desc: Format and apply lint fixes
+    prefix: format
+    cmds:
+      - uv run ruff format .
+      - uv run ruff check . --fix
+
+  typecheck:
+    desc: Type check
+    prefix: typecheck
+    cmds:
+      - uv run pyright
+
+  test:
+    desc: Run the test suite, offline
+    prefix: test
+    cmds:
+      # pytest exits 5 when it collects nothing, which is not a failure here.
+      - uv run pytest; code=$?; [ "$code" = "5" ] && exit 0 || exit "$code"
+
+  # The tests marked `network`, which the default suite deselects. They call a
+  # live exchange API, so `check` leaves them out: a gate must not fail because
+  # the exchange is down.
+  test:network:
+    desc: Run the tests that call a live exchange API
+    prefix: test:network
+    cmds:
+      - uv run pytest -m network
+
+  pre-commit:
+    desc: Run the checks the git pre-commit hook runs, over staged files
+    prefix: pre-commit
+    cmds:
+      - uv run lefthook run pre-commit

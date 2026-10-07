@@ -4,15 +4,22 @@
 # on the whole repository before anything leaves the machine. Skip a single
 # push with `git push --no-verify` when you mean to.
 #
+# `task check` rather than the commands it wraps, so this cannot fall behind the
+# Taskfile the way a copied list would.
+#
+# It goes through `mise exec` when `task` is not already on PATH. lefthook runs
+# its commands in `sh`, which does not get the activated environment an
+# interactive shell has, so in a bare login `sh` `task` does not resolve while
+# `mise` itself does. Pushing from a terminal works either way; pushing from an
+# editor's git integration is where the plain call fails, with
+# `task: command not found` and exit 127 in place of whatever the suite would
+# have said.
+#
 # pytest exits with 5 when it collects no tests; that is not a failure here.
 pre-push:
   commands:
     check:
-      run: >-
-        uv run ruff format --check .
-        && uv run ruff check .
-        && uv run pyright
-        && { uv run pytest; code=$?; [ "$code" = "5" ] && exit 0 || exit "$code"; }
+      run: if command -v task >/dev/null 2>&1; then task check; else mise exec -- task check; fi
 
 pre-commit:
   commands:
