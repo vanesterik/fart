@@ -63,10 +63,22 @@ tasks:
 
   # On-demand counterpart to Dependabot's weekly pull requests
   # (.github/dependabot.yml): direct dependencies with a newer release.
+  # A release that differs only in its local version label is not newer:
+  # torch's Linux wheels on the CPU index are tagged `+cpu` and its macOS
+  # wheels aren't, so `2.14.1` would otherwise always look behind `2.14.1+cpu`.
   outdated:
     desc: List direct dependencies that have a newer release
+    silent: true
     cmds:
-      - uv tree --quiet --outdated --depth 1 | grep "latest:" || echo "Every direct dependency is up to date."
+      - |
+        outdated="$(uv tree --quiet --outdated --depth 1 | awk '
+          /latest: / {
+            installed = $3; latest = $NF
+            sub(/^v/, "", installed); sub(/^v/, "", latest)
+            sub(/\)$/, "", latest); sub(/\+.*/, "", installed); sub(/\+.*/, "", latest)
+            if (installed != latest) print
+          }')"
+        if [ -n "$outdated" ]; then echo "$outdated"; else echo "Every direct dependency is up to date."; fi
 
   pre-commit:
     desc: Run the checks the git pre-commit hook runs, over staged files
