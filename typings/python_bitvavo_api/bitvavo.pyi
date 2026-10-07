@@ -1,5 +1,6 @@
+from collections.abc import Callable, Mapping
 from datetime import datetime
-from typing import Any, Callable, Mapping
+from typing import Any
 
 class Bitvavo:
     def __init__(self, options: Mapping[str, Any] | None = ...) -> None: ...

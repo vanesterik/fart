@@ -1,6 +1,7 @@
 import json
+from collections.abc import Callable
 from time import sleep
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 from pydantic import BaseModel
 from python_bitvavo_api.bitvavo import Bitvavo
@@ -32,14 +33,14 @@ class Trade(BaseModel):
     settled: bool
 
 
-Candle = Tuple[int, str, str, str, str, str]
+Candle = tuple[int, str, str, str, str, str]
 
 
 class CandlesSubscription(BaseModel):
     event: str
     market: str
     interval: str
-    candle: List[Candle]
+    candle: list[Candle]
 
 
 class Exchange:
@@ -61,7 +62,7 @@ class Exchange:
 
     """
 
-    def __init__(self, api_key: Optional[str], api_secret: Optional[str]) -> None:
+    def __init__(self, api_key: str | None, api_secret: str | None) -> None:
         self._client = Bitvavo(
             {
                 "APIKEY": api_key,
@@ -86,7 +87,7 @@ class Exchange:
         self._interval = interval
 
     @property
-    def balance(self) -> List[BalanceAsset]:
+    def balance(self) -> list[BalanceAsset]:
         balance_data = self._client.balance()
         return [BalanceAsset(**asset) for asset in balance_data]
 
@@ -100,17 +101,17 @@ class Exchange:
         return Price(**price_date)
 
     @property
-    def trades(self) -> List[Trade]:
+    def trades(self) -> list[Trade]:
         trades = self._client.trades(self._market)
         return [Trade(**trade) for trade in trades]
 
     def _get_candles(
         self,
-        limit: Optional[int] = None,
-        start: Optional[int] = None,
-        end: Optional[int] = None,
-    ) -> List[Candle]:
-        candles: List[Candle] = self._client.candles(
+        limit: int | None = None,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> list[Candle]:
+        candles: list[Candle] = self._client.candles(
             self._market,
             self._interval,
             None,
@@ -121,7 +122,7 @@ class Exchange:
 
         return candles
 
-    def initiate(self, callback: Callable[[Dict[str, Any]], None]) -> None:
+    def initiate(self, callback: Callable[[dict[str, Any]], None]) -> None:
         self._socket = self._client.newWebsocket()
         self._socket.subscriptionCandles(self._market, self._interval, callback)
         self._socket.setErrorCallback(self._error_callback)

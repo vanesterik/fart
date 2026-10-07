@@ -1,11 +1,11 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fartt.utils import get_model_filepath
 
 
 def test_get_model_filepath() -> None:
-    timestamp = datetime(2026, 8, 4, 14, 47, 49, 32031, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 8, 4, 14, 47, 49, 32031, tzinfo=UTC)
 
     filepath = get_model_filepath(
         artifacts_dir=Path("/tmp/fartt-test-artifacts"),
@@ -20,7 +20,7 @@ def test_get_model_filepath() -> None:
 
 
 def test_get_model_filepath_different_market_and_interval() -> None:
-    timestamp = datetime(2026, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 1, 1, 0, 0, 0, 0, tzinfo=UTC)
 
     filepath = get_model_filepath(
         artifacts_dir=Path("/tmp/fartt-test-artifacts"),

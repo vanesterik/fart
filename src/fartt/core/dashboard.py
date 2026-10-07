@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from babel.numbers import format_decimal, format_percent
 from rich.columns import Columns
@@ -30,34 +29,37 @@ from fartt.constants import (
     YEAR_TO_DATE,
 )
 
-BalanceData = Optional[
-    List[
-        Tuple[
+BalanceData = (
+    list[
+        tuple[
             str,  # Symbol
-            Optional[float],  # Available
+            float | None,  # Available
         ]
     ]
-]
+    | None
+)
 
-CurrencyData = Optional[
-    Tuple[
+CurrencyData = (
+    tuple[
         float,  # Price
         float,  # Change
         float,  # High
         float,  # Low
         float,  # Volume
     ]
-]
+    | None
+)
 
-ProfitLossData = Optional[
-    Tuple[
+ProfitLossData = (
+    tuple[
         float,  # Today
         float,  # This Week
         float,  # This Month
         float,  # Year to Date
         float,  # Total
     ]
-]
+    | None
+)
 
 
 class Dashboard:
@@ -139,7 +141,7 @@ class Dashboard:
                 ],
             ),
             Text(
-                f"{LAST_UPDATE}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                f"{LAST_UPDATE}: {datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S')}",
                 style=DOVE_GREY,
             ),
         )
@@ -215,7 +217,7 @@ class DecimalText(Text):
 
     """
 
-    def __init__(self, value: Optional[float] = None, currency: bool = False) -> None:
+    def __init__(self, value: float | None = None, currency: bool = False) -> None:
         super().__init__(
             (
                 format_decimal(value, format="#.00000000" if currency else "#,##0.00")
@@ -237,7 +239,7 @@ class PercentText(Text):
 
     """
 
-    def __init__(self, value: Optional[float] = None) -> None:
+    def __init__(self, value: float | None = None) -> None:
         super().__init__(
             (
                 format_percent(value, format="#.000%")
@@ -276,7 +278,7 @@ class BalanceTable(Table):
         for symbol, available in self._balance:
             self.add_row(
                 symbol,
-                DecimalText(available, currency=True if symbol != EUR else False),
+                DecimalText(available, currency=symbol != EUR),
             )
 
 
@@ -383,7 +385,7 @@ class TransactionHistoryTable(Table):
 
     """
 
-    def __init__(self, transactions: List[Tuple[str, str, float, float]]) -> None:
+    def __init__(self, transactions: list[tuple[str, str, float, float]]) -> None:
         self._transactions = transactions
 
         super().__init__(pad_edge=True)
