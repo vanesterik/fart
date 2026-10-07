@@ -21,3 +21,13 @@ def test_get_data_filepath_different_market_and_interval() -> None:
     )
 
     assert filepath == Path("/tmp/fartt-test-data/ETH-EUR-1h.csv")
+
+
+def test_get_data_filepath_converts_ccxt_symbol_to_file_name() -> None:
+    filepath = get_data_filepath(
+        data_dir=Path("/tmp/fartt-test-data"),
+        market="BTC/EUR",
+        interval="1h",
+    )
+
+    assert filepath == Path("/tmp/fartt-test-data/BTC-EUR-1h.csv")

@@ -33,7 +33,8 @@ def get_data_filepath(data_dir: Path, market: str, interval: str) -> Path:
     Parameters
     ----------
     - data_dir (Path): Path to the directory containing data files.
-    - market (str): Market name (e.g., 'BTC-USD').
+    - market (str): Market name in ccxt's format (e.g., 'BTC/EUR'). The
+      file name uses 'BTC-EUR', so the older dash form maps to the same file.
     - interval (str): Interval for the candle data (e.g., '1m', '5m', '1h').
 
     Returns
@@ -41,7 +42,7 @@ def get_data_filepath(data_dir: Path, market: str, interval: str) -> Path:
     - Path: Path to the candle data file.
 
     """
-    return data_dir / f"{market}-{interval}.csv"
+    return data_dir / f"{market.replace('/', '-')}-{interval}.csv"
 
 
 def get_model_filepath(
