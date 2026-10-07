@@ -45,6 +45,12 @@ uv run fartt download --assets-dir assets --market BTC/EUR --interval 1h
 
 `download` backfills closed OHLCV candles from Bitvavo (through [ccxt](https://github.com/ccxt/ccxt), so other exchanges are an `--exchange` option away) into a per-market/interval CSV cache under `assets_dir`, resuming from the last cached candle on each run instead of re-fetching from scratch. Markets use ccxt's format (`BTC/EUR`); the cache files keep the dash form (`BTC-EUR-1h.csv`). Candles are public, so no API keys are needed.
 
+The MCP server exposes the cache to Claude Code. It's registered in `.mcp.json`, so a Claude Code session in this directory starts it (`uv run fartt serve`), and the agent can call `get_candles` for the latest closed candles. Run `fartt download` with the same market and interval first, so the first call doesn't have to fill years of history:
+
+```bash
+uv run fartt download --market BTC/EUR --interval 1h
+```
+
 There is no `train` command. Training and evaluation run from the notebooks, one per candidate architecture: `notebooks/2.0-kve-data-analysis-mlp.ipynb` (MLP) and `notebooks/2.1-kve-data-analysis-cnn.ipynb` (CNN). Each loads the cached data, computes the target signal (`Magnitude`, signed percent-change), builds sliding lag windows with a chronological 60/20/20 train/val/test split, fits its model (see [Project Status](#project-status)), and reports directional accuracy, RMSE and MAE. Neither saves a checkpoint yet.
 
 Run `uv run fartt --help` for the full set of options.
