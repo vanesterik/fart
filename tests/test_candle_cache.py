@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from fartt.candle_cache import CandleCache, interval_to_ms
-from fartt.exchange import Candle
+from fartt.exchange import Candle, ExchangeUnavailable
 from tests.fakes import HOUR_MS, FakeExchange, candle
 
 HEADER = "Timestamp,Open,High,Low,Close,Volume\n"
@@ -256,3 +256,46 @@ def test_a_second_updater_waits_for_the_first(tmp_path: Path) -> None:
     waiter.join(timeout=5)
     assert second_result == [0]
     assert _timestamps(first.filepath) == [h * HOUR_MS for h in range(5)]
+
+
+def test_newest_closed_ms_is_the_open_time_of_the_last_closed_period(
+    tmp_path: Path,
+) -> None:
+    cache = _cache(FakeExchange([], now_ms=5 * HOUR_MS + HOUR_MS // 2), tmp_path)
+
+    assert cache.newest_closed_ms() == 4 * HOUR_MS
+
+
+def test_a_reader_waits_for_a_running_update(tmp_path: Path) -> None:
+    exchange = FakeExchange([candle(h) for h in range(5)], now_ms=5 * HOUR_MS)
+    writer = _cache(exchange, tmp_path)
+    reader = _cache(exchange, tmp_path)
+    updates = writer.iter_update()
+    assert next(updates) == 2  # the writer holds the lock mid-update
+
+    read: list[list[Candle]] = []
+    waiter = threading.Thread(target=lambda: read.append(reader.latest(10)))
+    waiter.start()
+    waiter.join(timeout=0.3)
+    assert waiter.is_alive(), "latest() read while an update held the file"
+
+    assert sum(updates) == 3
+    waiter.join(timeout=5)
+    assert read == [[candle(h) for h in range(5)]]
+
+
+def test_update_keeps_batches_written_before_the_exchange_failed(
+    tmp_path: Path,
+) -> None:
+    exchange = FakeExchange(
+        [candle(h) for h in range(5)], now_ms=5 * HOUR_MS, fail_after_fetches=1
+    )
+    cache = _cache(exchange, tmp_path)
+
+    with pytest.raises(ExchangeUnavailable):
+        cache.update()
+
+    assert cache.latest(10) == [candle(0), candle(1)]
+    exchange.fail_after_fetches = None
+    assert cache.update() == 3
+    assert _timestamps(cache.filepath) == [h * HOUR_MS for h in range(5)]

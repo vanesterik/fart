@@ -68,7 +68,8 @@ class CandleCache:
     `clock` returns the current time in milliseconds and decides where
     "the present" is: paging stops after the newest closed period, so an
     empty batch before that point is a gap in the exchange's history and
-    is skipped.
+    is skipped. Updates hold an exclusive lock on a sidecar `.lock` file and
+    `latest()` a shared one, so readers never see a half-written line.
 
     """
 
@@ -92,6 +93,15 @@ class CandleCache:
         self._batch_limit = batch_limit
         self._clock = clock
 
+    @property
+    def _lock_path(self) -> Path:
+        return self.filepath.with_name(f"{self.filepath.name}.lock")
+
+    def newest_closed_ms(self) -> int:
+        """Open time of the most recently closed period, by this cache's clock."""
+        now_ms = self._clock()
+        return (now_ms // self._interval_ms - 1) * self._interval_ms
+
     def iter_update(self) -> Iterator[int]:
         """
         Fetch every closed candle newer than the cache, one batch at a time,
@@ -103,8 +113,7 @@ class CandleCache:
 
         """
         self._assets_dir.mkdir(parents=True, exist_ok=True)
-        lock_path = self.filepath.with_name(f"{self.filepath.name}.lock")
-        with open(lock_path, "w") as lock:
+        with open(self._lock_path, "w") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
             yield from self._iter_update_locked()
 
@@ -112,8 +121,7 @@ class CandleCache:
         self._heal_tail()
         last = self._read_last_candle()
         since_ms = last.timestamp if last is not None else self._history_start_ms
-        now_ms = self._clock()
-        newest_closed_ms = (now_ms // self._interval_ms - 1) * self._interval_ms
+        newest_closed_ms = self.newest_closed_ms()
 
         while since_ms <= newest_closed_ms:
             batch = self._exchange.fetch_closed_candles(
@@ -146,11 +154,20 @@ class CandleCache:
         return sum(self.iter_update())
 
     def latest(self, count: int) -> list[Candle]:
-        """Return up to `count` of the newest cached candles, oldest first."""
+        """
+        Return up to `count` of the newest cached candles, oldest first.
+
+        Takes a shared lock on the same sidecar `.lock` file that updates
+        lock exclusively, so it never reads a line another process is still
+        writing. Readers don't block each other.
+
+        """
         if not self.filepath.exists():
             return []
-        with self.filepath.open(newline="", encoding="utf-8") as file:
-            rows = deque(DictReader(file), maxlen=count)
+        with open(self._lock_path, "a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_SH)
+            with self.filepath.open(newline="", encoding="utf-8") as file:
+                rows = deque(DictReader(file), maxlen=count)
         return [
             Candle(
                 timestamp=int(row[TIMESTAMP]),
