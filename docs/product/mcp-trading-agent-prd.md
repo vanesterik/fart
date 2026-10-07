@@ -186,7 +186,7 @@ Evidence: BTC-EUR, 1m candles resampled per interval, 2025-08-04 to 2026-08-04:
 | 1d | 1.231% | 76.4% |
 
 Why sub-30m is excluded:
-- **Fees outweigh the moves.** A round trip costs roughly 0.4–0.5% in taker fees at the entry tier (🔶 **Assumption:** to be confirmed against the actual Bitvavo fee tier), which fewer than 5% of 15m candles reach.
+- **Fees outweigh the moves.** A round trip costs roughly 0.4–0.5% in taker fees at the entry tier (confirmed 2026-10-07 from ccxt's Bitvavo fee table: 0.25% taker, 0.15% maker at the entry tier; the operator's own tier still needs an authenticated check), which fewer than 5% of 15m candles reach.
 - **Agent speed and cost.** A cycle of tool calls plus reasoning takes tens of seconds and is billed per token, and an approval stage would need constant attention.
 - **A different architecture.** High-frequency trading needs a deterministic strategy without an agent in the loop.
 
@@ -303,7 +303,7 @@ Notes on the breakdown:
 ## 9. Dependencies & Risks
 
 ### Dependencies
-- **ccxt:** Bitvavo support for candles, balances and orders, including stop-loss order types (🔶 **Assumption:** to be verified in A1 and F2).
+- **ccxt:** Bitvavo support for candles, balances and orders, including stop-loss order types (confirmed 2026-10-07: a `stopLossPrice` parameter on `create_order` maps to Bitvavo's native `stopLoss`/`stopLossLimit` orders, placed as a separate order after the entry fills; Bitvavo also requires an `operatorId` on every order).
 - **MCP Python SDK:** the server, its tools and the trading-cycle prompt.
 - **Claude Code:** `/loop`, permission rules, MCP server registration.
 - **Foundation-model packages** (Chronos, TimesFM): heavy dependencies, possibly installed as a screening-only extra.
@@ -333,5 +333,3 @@ Gaps found while writing the user journey (Section 5):
 
 Assumptions tagged inline that need settling:
 - 🔶 **Backtest-match tolerance** for the stage gates (Section 6).
-- 🔶 **Bitvavo fee tier:** the round-trip cost of roughly 0.4–0.5% used to exclude sub-30m intervals (Section 6).
-- 🔶 **ccxt coverage** of Bitvavo stop-loss order types (Section 9).
