@@ -127,9 +127,10 @@ The project follows the [cookiecutter data science project template](https://dri
     ├── pyproject.toml     <- Project + dependency config (managed with `uv`).
     │
     └── src/fartt           <- Source code for use in this project.
-        ├── cli.py         <- Typer entrypoint (the `fartt` console script).
+        ├── candle_cache.py <- Append-only CSV candle cache, kept up to date through the exchange layer.
+        ├── cli.py         <- argparse entrypoint (the `fartt` console script).
         ├── constants.py   <- Shared column names, UI labels, color palette.
-        ├── downloader.py  <- Backfills candle data from Bitvavo.
+        ├── exchange       <- Exchange interface and its ccxt implementation (Bitvavo by default).
         ├── utils.py       <- Path helpers (project root, candle/model file paths).
         │
         ├── core           <- Part B trade-execution scaffolding (not yet wired in).

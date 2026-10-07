@@ -1,3 +1,4 @@
+import fcntl
 import time
 from collections import deque
 from collections.abc import Callable, Iterator
@@ -28,6 +29,22 @@ _UNIT_MS = {
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def _is_whole_line(line: bytes) -> bool:
+    # The header, or six numeric fields: what every line the cache writes is.
+    text = line.decode("utf-8", errors="replace").rstrip("\r")
+    if text.startswith(TIMESTAMP):
+        return True
+    fields = text.split(",")
+    if len(fields) != 6:
+        return False
+    try:
+        for field in fields:
+            float(field)
+    except ValueError:
+        return False
+    return True
 
 
 def interval_to_ms(interval: str) -> int:
@@ -80,8 +97,19 @@ class CandleCache:
         Fetch every closed candle newer than the cache, one batch at a time,
         and yield the number of new candles after appending each batch.
 
+        Holds an exclusive lock on a sidecar `.lock` file until the update
+        finishes, so `fartt download` and the MCP server can't write the
+        same file at once; a second updater waits for the first.
+
         """
         self._assets_dir.mkdir(parents=True, exist_ok=True)
+        lock_path = self.filepath.with_name(f"{self.filepath.name}.lock")
+        with open(lock_path, "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            yield from self._iter_update_locked()
+
+    def _iter_update_locked(self) -> Iterator[int]:
+        self._heal_tail()
         last = self._read_last_candle()
         since_ms = last.timestamp if last is not None else self._history_start_ms
         now_ms = self._clock()
@@ -141,6 +169,28 @@ class CandleCache:
             offset = max(0, size - _TAIL_BYTES)
             file.seek(offset)
             return offset, file.read()
+
+    def _heal_tail(self) -> None:
+        # A hard kill mid-append can leave the file ending mid-line, and a
+        # hand edit can drop the trailing newline; either would corrupt the
+        # next append. A last line that is still a whole header or candle
+        # gets its newline back; anything else is cut off, and resuming
+        # re-fetches it from the exchange.
+        if not self.filepath.exists() or self.filepath.stat().st_size == 0:
+            return
+        offset, tail = self._read_tail()
+        ends_with_newline = tail.endswith(b"\n")
+        body = tail[:-1] if ends_with_newline else tail
+        last_line = body.rsplit(b"\n", 1)[-1]
+
+        if _is_whole_line(last_line):
+            if not ends_with_newline:
+                with open(self.filepath, "ab") as file:
+                    file.write(b"\n")
+            return
+
+        with open(self.filepath, "rb+") as file:
+            file.truncate(offset + len(body) - len(last_line))
 
     def _read_last_candle(self) -> Candle | None:
         if not self.filepath.exists():
