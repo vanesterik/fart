@@ -4,7 +4,7 @@
 
 **Goal:** Fetch closed candles through ccxt behind an internal `Exchange` interface (story #50), with a pre-push quality gate in place before any code lands.
 
-**Architecture:** A new `fart.exchange` package holds a `Candle` NamedTuple, an `Exchange` Protocol (`has_market`, `fetch_closed_candles`) and `CcxtExchange`, the only module that imports ccxt. `CcxtExchange` builds a ccxt client from an exchange ID (default `bitvavo`), loads markets once, drops the still-forming candle by comparing each candle's end with an injectable clock, and returns candles sorted by timestamp. Nothing uses the layer yet; the candle cache (story #51) is its first caller.
+**Architecture:** A new `fartt.exchange` package holds a `Candle` NamedTuple, an `Exchange` Protocol (`has_market`, `fetch_closed_candles`) and `CcxtExchange`, the only module that imports ccxt. `CcxtExchange` builds a ccxt client from an exchange ID (default `bitvavo`), loads markets once, drops the still-forming candle by comparing each candle's end with an injectable clock, and returns candles sorted by timestamp. Nothing uses the layer yet; the candle cache (story #51) is its first caller.
 
 **Tech Stack:** Python 3.11+, ccxt 4.5, pytest, pyright (strict), ruff, lefthook, uv.
 
@@ -13,8 +13,8 @@
 ## Global Constraints
 
 - Market symbols use ccxt's format, `BTC/EUR`. File names keep `BTC-EUR`, but that conversion belongs to story #51, not this plan.
-- `ccxt` is imported only inside `src/fart/exchange/ccxt_exchange.py` (spec, story #50 acceptance criterion).
-- `Exchange` is a `typing.Protocol`, like `fart.model.builder.ModelBuilder`. No base class and no inheritance.
+- `ccxt` is imported only inside `src/fartt/exchange/ccxt_exchange.py` (spec, story #50 acceptance criterion).
+- `Exchange` is a `typing.Protocol`, like `fartt.model.builder.ModelBuilder`. No base class and no inheritance.
 - `Candle` is a `NamedTuple` with the fields `timestamp` (int, ms), `open`, `high`, `low`, `close`, `volume` (float), in that order.
 - No API keys in this epic. Candles are public.
 - `pyproject.toml` runs pyright in strict mode over `src/` only, with `stubPath = "typings"`. ccxt ships no type information, so a local stub in `typings/ccxt/__init__.pyi` declares the parts used (verified while writing this plan: without the stub, strict mode reports `reportMissingTypeStubs` and `reportUnknownMemberType`; with it, 0 errors).
@@ -50,7 +50,7 @@ In `pyproject.toml`, `[tool.pytest.ini_options]`, change `addopts` and `markers`
 addopts = [                                  # Additional command-line options
     "-v",                                    # Verbose output
     "--strict-markers",                      # Error on unknown markers
-    "--cov=fart",                            # Measure coverage for this package
+    "--cov=fartt",                            # Measure coverage for this package
     "--cov-report=term-missing",             # Show missing lines in terminal
     "-m", "not network",                     # Stay offline unless asked (`-m network`)
 ]
@@ -157,19 +157,19 @@ git commit -m "chore: add pre-push quality gate in place of CI"
 **Files:**
 - Modify: `pyproject.toml`, `uv.lock` (via `uv add ccxt`)
 - Create: `typings/ccxt/__init__.pyi`
-- Create: `src/fart/exchange/__init__.py`
-- Create: `src/fart/exchange/candle.py`
-- Create: `src/fart/exchange/exchange.py`
-- Create: `src/fart/exchange/ccxt_exchange.py`
+- Create: `src/fartt/exchange/__init__.py`
+- Create: `src/fartt/exchange/candle.py`
+- Create: `src/fartt/exchange/exchange.py`
+- Create: `src/fartt/exchange/ccxt_exchange.py`
 - Test: `tests/exchange/test_ccxt_exchange.py`
 - Test: `tests/exchange/test_ccxt_exchange_network.py`
 
 **Interfaces:**
 - Consumes: the `network` marker from Task 1.
 - Produces (used by story #51's `CandleCache` and story #52's server):
-  - `fart.exchange.Candle(timestamp: int, open: float, high: float, low: float, close: float, volume: float)`, a `NamedTuple`
-  - `fart.exchange.Exchange`, a `Protocol` with `has_market(self, market: str) -> bool` and `fetch_closed_candles(self, market: str, interval: str, since_ms: int, limit: int) -> list[Candle]`
-  - `fart.exchange.CcxtExchange(exchange_id: str = "bitvavo", client: ccxt.Exchange | None = None, clock: Callable[[], int] = <now in ms>)`
+  - `fartt.exchange.Candle(timestamp: int, open: float, high: float, low: float, close: float, volume: float)`, a `NamedTuple`
+  - `fartt.exchange.Exchange`, a `Protocol` with `has_market(self, market: str) -> bool` and `fetch_closed_candles(self, market: str, interval: str, since_ms: int, limit: int) -> list[Candle]`
+  - `fartt.exchange.CcxtExchange(exchange_id: str = "bitvavo", client: ccxt.Exchange | None = None, clock: Callable[[], int] = <now in ms>)`
 
 - [ ] **Step 1: Add the dependency and the type stub**
 
@@ -210,7 +210,7 @@ def __getattr__(name: str) -> type[Exchange]: ...
 
 - [ ] **Step 2: Write `Candle` and the `Exchange` Protocol**
 
-Create `src/fart/exchange/candle.py`:
+Create `src/fartt/exchange/candle.py`:
 
 ```python
 from typing import NamedTuple
@@ -234,12 +234,12 @@ class Candle(NamedTuple):
     volume: float
 ```
 
-Create `src/fart/exchange/exchange.py`:
+Create `src/fartt/exchange/exchange.py`:
 
 ```python
 from typing import Protocol
 
-from fart.exchange.candle import Candle
+from fartt.exchange.candle import Candle
 
 
 class Exchange(Protocol):
@@ -278,7 +278,7 @@ from typing import Any
 
 import pytest
 
-from fart.exchange import Candle, CcxtExchange
+from fartt.exchange import Candle, CcxtExchange
 
 HOUR_MS = 3_600_000
 
@@ -415,11 +415,11 @@ def test_ccxt_exchange_builds_real_client_for_known_id() -> None:
 - [ ] **Step 4: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/exchange/test_ccxt_exchange.py -q 2>&1 | tail -3`
-Expected: collection error, `ModuleNotFoundError: No module named 'fart.exchange'` (or `ImportError` for `CcxtExchange`).
+Expected: collection error, `ModuleNotFoundError: No module named 'fartt.exchange'` (or `ImportError` for `CcxtExchange`).
 
 - [ ] **Step 5: Implement `CcxtExchange` and the package exports**
 
-Create `src/fart/exchange/ccxt_exchange.py`:
+Create `src/fartt/exchange/ccxt_exchange.py`:
 
 ```python
 import time
@@ -428,7 +428,7 @@ from typing import Any
 
 import ccxt
 
-from fart.exchange.candle import Candle
+from fartt.exchange.candle import Candle
 
 
 def _now_ms() -> int:
@@ -510,12 +510,12 @@ class CcxtExchange:
         return self._markets
 ```
 
-Create `src/fart/exchange/__init__.py`:
+Create `src/fartt/exchange/__init__.py`:
 
 ```python
-from fart.exchange.candle import Candle
-from fart.exchange.ccxt_exchange import CcxtExchange
-from fart.exchange.exchange import Exchange
+from fartt.exchange.candle import Candle
+from fartt.exchange.ccxt_exchange import CcxtExchange
+from fartt.exchange.exchange import Exchange
 
 __all__ = ["Candle", "CcxtExchange", "Exchange"]
 ```
@@ -534,7 +534,7 @@ import time
 
 import pytest
 
-from fart.exchange import CcxtExchange
+from fartt.exchange import CcxtExchange
 
 HOUR_MS = 3_600_000
 
@@ -572,7 +572,7 @@ Run: `uv run ruff check . && uv run ruff format --check .`
 Expected: `All checks passed!` and every file already formatted.
 
 Run: `git grep -n "import ccxt" -- src tests`
-Expected: only `src/fart/exchange/ccxt_exchange.py`.
+Expected: only `src/fartt/exchange/ccxt_exchange.py`.
 
 - [ ] **Step 10: Record the confirmed findings in the PRD**
 
@@ -585,7 +585,7 @@ Issue #50 asks for the ccxt stop-loss coverage and the fee tier to be settled in
 - [ ] **Step 11: Commit**
 
 ```bash
-git add pyproject.toml uv.lock typings/ccxt/__init__.pyi src/fart/exchange tests/exchange docs/product/mcp-trading-agent-prd.md
+git add pyproject.toml uv.lock typings/ccxt/__init__.pyi src/fartt/exchange tests/exchange docs/product/mcp-trading-agent-prd.md
 git commit -m "feat: add exchange layer fetching closed candles through ccxt"
 ```
 

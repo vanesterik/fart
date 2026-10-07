@@ -1,8 +1,8 @@
-![F.A.R.T.](./fart.avif)
+![Fartt](./fartt.avif)
 
-# F.A.R.T.
+# Fartt
 
-**F.A.R.T.** is a cryptocurrency trade platform that uses machine learning to make real-time trading decisions. It stands for **F**inancial **A**nalysis & **R**eal-time **T**rading. The trade platform is trained on historical data to generate buy/sell signals, which it then uses to execute trades in real-time.
+**Fartt** is a cryptocurrency trade platform that uses machine learning to make real-time trading decisions. It stands for **F**inancial **A**nalysis **R**eal **T**ime **T**rading. The trade platform is trained on historical data to generate buy/sell signals, which it then uses to execute trades in real-time.
 
 ## Motivation
 
@@ -12,15 +12,15 @@ The motivation for this project is twofold:
 
 ## Name
 
-The name **F.A.R.T.** is an abbreviation play on the title "Financial Analysis and Real-time Trading". It is also the name of a gaseous being who appeared in the episode [Mortynight Run](https://www.imdb.com/title/tt4832254/) of the Rick and Morty series. There is a bit of musical part in the episode, which I really enjoyed. The name **F.A.R.T.** is a homage to that episode.
+The name **Fartt** is an abbreviation play on the title "Financial Analysis Real Time Trading". It is also a nod to Fart, the gaseous being who appeared in the episode [Mortynight Run](https://www.imdb.com/title/tt4832254/) of the Rick and Morty series. There is a bit of musical part in the episode, which I really enjoyed. The name **Fartt** is a homage to that episode.
 
 ## Project Status
 
 This is a solo research project, and it's mid-refactor — the code you'll find here is split across two planned initiatives, sequenced deliberately:
 
-- **Part A — Signal generation.** Rewriting the model that turns historical candle data into buy/sell signals from a six-way classifier (up/down/hold) to a sequence-aware regression model, so it captures trade *magnitude* against cost rather than a bare direction. The first prototype was an [N-BEATS](#references) network trained on sliding windows of percent returns, predicting a per-candle magnitude and confidence via a probabilistic head. That confidence output turned out to be uncalibrated — the model shrunk its predicted uncertainty to nearly the same value for every candle regardless of how right or wrong it actually was — and [beta-NLL](#references) was tried as a fix, since it reweights each window's loss contribution by its own predicted variance. A single-run comparison first suggested it helped, but a 130-run reproducibility check (30 runs each at beta 0.0/0.5/1.0) found no statistically significant difference between any of them in either mean confidence/error correlation or run-to-run variance — that original result was a favorable single draw, not a reproducible effect. **The calibration problem was never solved, and that N-BEATS implementation was retired.** Rather than commit to a single replacement architecture, the active work is now a **five-way architecture screen**: a small feed-forward (`nn.Sequential`) MLP baseline was built first — no uncertainty head, just magnitude, trained/evaluated/persisted via `fart/model/prepare_datasets.py`, `train_model.py`, `evaluate_model.py`, and `persist_model.py` — and its notebook (`notebooks/2.0-kve-data-analysis-mlp.ipynb`) now serves as the template for adapting to the other architectures: a CNN (`notebooks/2.1-kve-data-analysis-cnn.ipynb`) is built, with GRU, N-BEATS (rebuilt fresh, not restored), and a time-series transformer still to come. All five are screened on the same RMSE/directional-accuracy metrics before the 1–2 best performers go through full walk-forward backtest validation.
+- **Part A — Signal generation.** Rewriting the model that turns historical candle data into buy/sell signals from a six-way classifier (up/down/hold) to a sequence-aware regression model, so it captures trade *magnitude* against cost rather than a bare direction. The first prototype was an [N-BEATS](#references) network trained on sliding windows of percent returns, predicting a per-candle magnitude and confidence via a probabilistic head. That confidence output turned out to be uncalibrated — the model shrunk its predicted uncertainty to nearly the same value for every candle regardless of how right or wrong it actually was — and [beta-NLL](#references) was tried as a fix, since it reweights each window's loss contribution by its own predicted variance. A single-run comparison first suggested it helped, but a 130-run reproducibility check (30 runs each at beta 0.0/0.5/1.0) found no statistically significant difference between any of them in either mean confidence/error correlation or run-to-run variance — that original result was a favorable single draw, not a reproducible effect. **The calibration problem was never solved, and that N-BEATS implementation was retired.** Rather than commit to a single replacement architecture, the active work is now a **five-way architecture screen**: a small feed-forward (`nn.Sequential`) MLP baseline was built first — no uncertainty head, just magnitude, trained/evaluated/persisted via `fartt/model/prepare_datasets.py`, `train_model.py`, `evaluate_model.py`, and `persist_model.py` — and its notebook (`notebooks/2.0-kve-data-analysis-mlp.ipynb`) now serves as the template for adapting to the other architectures: a CNN (`notebooks/2.1-kve-data-analysis-cnn.ipynb`) is built, with GRU, N-BEATS (rebuilt fresh, not restored), and a time-series transformer still to come. All five are screened on the same RMSE/directional-accuracy metrics before the 1–2 best performers go through full walk-forward backtest validation.
   See the [Problem Framing Canvas](docs/product/part-a-signal-generation-refactor.md) and [PRD](docs/product/part-a-signal-generation-refactor-prd.md).
-- **Part B — Trade execution.** Not yet started. Deliberately sequenced *after* Part A, and framed as a risk-management problem first (position sizing, stop-loss, kill switch, failure recovery) and a Bitvavo-connector problem second. The typed exchange wrapper (`fart/core/exchange.py`) and live terminal dashboard (`fart/core/dashboard.py`) exist as early scaffolding but aren't wired into a working entrypoint yet — `fart/core/broker.py` and `fart/model/predict_model.py`, which would tie them together, are still empty stubs.
+- **Part B — Trade execution.** Not yet started. Deliberately sequenced *after* Part A, and framed as a risk-management problem first (position sizing, stop-loss, kill switch, failure recovery) and a Bitvavo-connector problem second. The typed exchange wrapper (`fartt/core/exchange.py`) and live terminal dashboard (`fartt/core/dashboard.py`) exist as early scaffolding but aren't wired into a working entrypoint yet — `fartt/core/broker.py` and `fartt/model/predict_model.py`, which would tie them together, are still empty stubs.
   See the [Problem Framing Canvas](docs/product/part-b-trade-execution-system.md) and [PRD](docs/product/part-b-trade-execution-system-prd.md).
 
 What actually works today is downloading candle data with the CLI and training/evaluating the candidate signal-generation models on it in the notebooks (see Usage below) — everything downstream of a trained model (predictions, order placement, the live dashboard) is upcoming Part B work, not yet runnable.
@@ -40,20 +40,20 @@ task setup
 One command works end to end today: downloading candle data.
 
 ```bash
-uv run fart download --assets-dir assets --market BTC-EUR --interval 1h
+uv run fartt download --assets-dir assets --market BTC-EUR --interval 1h
 ```
 
 `download` backfills OHLCV candle data from Bitvavo into a per-market/interval CSV cache under `assets_dir`, resuming from the last cached candle on each run instead of re-fetching from scratch. It requires `BITVAVO_API_KEY` / `BITVAVO_API_SECRET` in a `.env` file.
 
 There is no `train` command. Training and evaluation run from the notebooks, one per candidate architecture: `notebooks/2.0-kve-data-analysis-mlp.ipynb` (MLP) and `notebooks/2.1-kve-data-analysis-cnn.ipynb` (CNN). Each loads the cached data, computes the target signal (`Magnitude`, signed percent-change), builds sliding lag windows with a chronological 60/20/20 train/val/test split, fits its model (see [Project Status](#project-status)), and reports directional accuracy, RMSE and MAE. Neither saves a checkpoint yet.
 
-Run `uv run fart --help` for the full set of options.
+Run `uv run fartt --help` for the full set of options.
 
 Everything past a trained model — turning predictions into orders, the live terminal dashboard, pause/resume/kill controls — is Part B and not implemented yet.
 
 ## Planned Trade Execution Flow
 
-The state machine below is the target design for Part B's live-trading loop, not current behavior — it's included here to document the intended shape of the system once `fart/core/broker.py` is built out. It assumes a trained Part A checkpoint is already loaded (training is a separate, offline `fart train` run, not part of this loop) and follows the [PRD](docs/product/part-b-trade-execution-system-prd.md)'s risk-management-first framing: every signal passes through a kill-switch check and position sizing/stop-loss before an order is ever placed, and exchange-side failures (downtime, partial fills, rate limits, auth expiry) are handled explicitly rather than silently:
+The state machine below is the target design for Part B's live-trading loop, not current behavior — it's included here to document the intended shape of the system once `fartt/core/broker.py` is built out. It assumes a trained Part A checkpoint is already loaded (training is a separate, offline `fartt train` run, not part of this loop) and follows the [PRD](docs/product/part-b-trade-execution-system-prd.md)'s risk-management-first framing: every signal passes through a kill-switch check and position sizing/stop-loss before an order is ever placed, and exchange-side failures (downtime, partial fills, rate limits, auth expiry) are handled explicitly rather than silently:
 
 ```mermaid
 
@@ -122,12 +122,12 @@ The project follows the [cookiecutter data science project template](https://dri
     │
     ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering), the creator's initials, and a short `-` delimited description, e.g. `1.0-kve-exploratory-data-analysis`.
     │
-    ├── tests              <- Unit tests, mirroring the src/fart layout.
+    ├── tests              <- Unit tests, mirroring the src/fartt layout.
     │
     ├── pyproject.toml     <- Project + dependency config (managed with `uv`).
     │
-    └── src/fart           <- Source code for use in this project.
-        ├── cli.py         <- Typer entrypoint (the `fart` console script).
+    └── src/fartt           <- Source code for use in this project.
+        ├── cli.py         <- Typer entrypoint (the `fartt` console script).
         ├── constants.py   <- Shared column names, UI labels, color palette.
         ├── downloader.py  <- Backfills candle data from Bitvavo.
         ├── utils.py       <- Path helpers (project root, candle/model file paths).

@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-07
 **Status:** Draft, awaiting approval
-**Supersedes:** the Part A (signal generation) and Part B (trade execution) PRDs and framing canvases, deleted with this PRD. The last version is [`docs/product` at 82ee8cf](https://github.com/vanesterik/fart/tree/82ee8cfc6567f2fbb16e6687c0041e4f453db7c3/docs/product).
+**Supersedes:** the Part A (signal generation) and Part B (trade execution) PRDs and framing canvases, deleted with this PRD. The last version is [`docs/product` at 82ee8cf](https://github.com/vanesterik/fartt/tree/82ee8cfc6567f2fbb16e6687c0041e4f453db7c3/docs/product).
 
 ---
 
@@ -17,7 +17,7 @@ The forecast model is chosen by screening the own architectures (MLP, CNN, GRU, 
 ## 2. Problem Statement
 
 ### Who has this problem?
-You, as the solo developer and operator of FART.
+You, as the solo developer and operator of Fartt.
 
 ### What is the problem?
 The project is trying to build two hard things at once: a forecast model that has an edge, and a complete trading platform around it. The platform work (dashboard, broker loop, scheduler, CLI, exchange plumbing) needs constant upkeep. It has taken effort away from proving the model, so after several refactors there is still no trustworthy signal, and no working path from a forecast to an order.

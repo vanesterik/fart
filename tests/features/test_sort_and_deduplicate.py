@@ -1,7 +1,7 @@
 import polars as pl
 
-from fart.constants import CLOSE, TIMESTAMP
-from fart.features.sort_and_deduplicate import sort_and_deduplicate
+from fartt.constants import CLOSE, TIMESTAMP
+from fartt.features.sort_and_deduplicate import sort_and_deduplicate
 
 
 def test_sort_and_deduplicate_sorts_out_of_order_rows() -> None:

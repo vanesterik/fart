@@ -2,15 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `fart train` actually fit a hand-rolled N-BEATS model on a recent slice of BTC candles and produce a magnitude + confidence prediction per held-out candle, without errors.
+**Goal:** Make `fartt train` actually fit a hand-rolled N-BEATS model on a recent slice of BTC candles and produce a magnitude + confidence prediction per held-out candle, without errors.
 
-**Architecture:** A univariate N-BEATS network (`fart/model/nbeats.py`, `fart/model/nbeats_config.py`, `fart/model/nbeats_dataset.py`) consumes sliding windows of Close-price percent returns and predicts `(mu, log_sigma)` per window via a doubly-residual stack of generic blocks, trained with `GaussianNLLLoss`. `fart/model/train_model.py`'s `prepare_training_data()` gains a `months` slicing parameter, and `train()` is extended to build return-windows from the existing chronological split, fit the model, run inference on the held-out test windows, and return `(magnitudes, confidences)`. `fart/cli.py`'s `train` command gains a `--months` option.
+**Architecture:** A univariate N-BEATS network (`fartt/model/nbeats.py`, `fartt/model/nbeats_config.py`, `fartt/model/nbeats_dataset.py`) consumes sliding windows of Close-price percent returns and predicts `(mu, log_sigma)` per window via a doubly-residual stack of generic blocks, trained with `GaussianNLLLoss`. `fartt/model/train_model.py`'s `prepare_training_data()` gains a `months` slicing parameter, and `train()` is extended to build return-windows from the existing chronological split, fit the model, run inference on the held-out test windows, and return `(magnitudes, confidences)`. `fartt/cli.py`'s `train` command gains a `--months` option.
 
 **Tech Stack:** Python 3.11+, PyTorch (CPU), Polars, NumPy, Pydantic, Typer, loguru, pytest, uv.
 
 ## Global Constraints
 
-- Do not modify `src/fart/features/calculate_technical_indicators.py` or `src/fart/model/train_test_split.py` — reuse both unmodified (spec requirement).
+- Do not modify `src/fartt/features/calculate_technical_indicators.py` or `src/fartt/model/train_test_split.py` — reuse both unmodified (spec requirement).
 - N-BEATS input is univariate: Close-price percent returns only. `X_train`/`X_test` (the indicator columns) continue to be produced by `prepare_training_data()` but are not consumed by the model in this story (spec decision — multivariate input is deferred).
 - `magnitude` = `(next_close - current_close) / current_close` (percent return), never a raw price (spec decision).
 - `confidence = 1 / (1 + exp(log_sigma))`, must land in `(0, 1)` (spec decision).
@@ -31,18 +31,18 @@
 ## Task 1: `NBeatsConfig` — hyperparameter config
 
 **Files:**
-- Create: `src/fart/model/nbeats_config.py`
+- Create: `src/fartt/model/nbeats_config.py`
 - Test: `tests/model/test_nbeats_config.py` (new)
 
 **Interfaces:**
-- Produces: `NBeatsConfig` (pydantic `BaseModel`) — importable from `fart.model.nbeats_config`. Fields: `lookback: int = 30`, `num_stacks: int = 2`, `num_blocks_per_stack: int = 3`, `hidden_width: int = 64`, `epochs: int = 50`, `learning_rate: float = 1e-3`. Used by Task 3 (`NBeatsNet`) and Task 5 (`train()`).
+- Produces: `NBeatsConfig` (pydantic `BaseModel`) — importable from `fartt.model.nbeats_config`. Fields: `lookback: int = 30`, `num_stacks: int = 2`, `num_blocks_per_stack: int = 3`, `hidden_width: int = 64`, `epochs: int = 50`, `learning_rate: float = 1e-3`. Used by Task 3 (`NBeatsNet`) and Task 5 (`train()`).
 
 - [ ] **Step 1: Write the failing test**
 
 Create `tests/model/test_nbeats_config.py`:
 
 ```python
-from fart.model.nbeats_config import NBeatsConfig
+from fartt.model.nbeats_config import NBeatsConfig
 
 
 def test_nbeats_config_defaults() -> None:
@@ -67,11 +67,11 @@ def test_nbeats_config_overrides() -> None:
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/model/test_nbeats_config.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'fart.model.nbeats_config'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'fartt.model.nbeats_config'`
 
 - [ ] **Step 3: Implement `NBeatsConfig`**
 
-Create `src/fart/model/nbeats_config.py`:
+Create `src/fartt/model/nbeats_config.py`:
 
 ```python
 from pydantic import BaseModel
@@ -107,7 +107,7 @@ Expected: `2 passed`
 
 - [ ] **Step 5: Static checks**
 
-Run: `uv run ruff format src/fart/model/nbeats_config.py && uv run ruff check src/fart/model/nbeats_config.py`
+Run: `uv run ruff format src/fartt/model/nbeats_config.py && uv run ruff check src/fartt/model/nbeats_config.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -116,7 +116,7 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/model/nbeats_config.py tests/model/test_nbeats_config.py
+git add src/fartt/model/nbeats_config.py tests/model/test_nbeats_config.py
 git commit -m "feat: add NBeatsConfig for quick-prototype N-BEATS hyperparameters"
 ```
 
@@ -125,11 +125,11 @@ git commit -m "feat: add NBeatsConfig for quick-prototype N-BEATS hyperparameter
 ## Task 2: `build_return_windows` — return-window dataset construction
 
 **Files:**
-- Create: `src/fart/model/nbeats_dataset.py`
+- Create: `src/fartt/model/nbeats_dataset.py`
 - Test: `tests/model/test_nbeats_dataset.py` (new)
 
 **Interfaces:**
-- Produces: `build_return_windows(close_prices: pl.Series, lookback: int) -> Tuple[torch.Tensor, torch.Tensor]` — importable from `fart.model.nbeats_dataset`. Returns `(X, y)` where `X` has shape `(num_windows, lookback)` and `y` has shape `(num_windows,)`, both `torch.float32`. Raises `ValueError` if `num_windows <= 0`. Used by Task 5 (`train()`).
+- Produces: `build_return_windows(close_prices: pl.Series, lookback: int) -> Tuple[torch.Tensor, torch.Tensor]` — importable from `fartt.model.nbeats_dataset`. Returns `(X, y)` where `X` has shape `(num_windows, lookback)` and `y` has shape `(num_windows,)`, both `torch.float32`. Raises `ValueError` if `num_windows <= 0`. Used by Task 5 (`train()`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -140,7 +140,7 @@ import polars as pl
 import pytest
 import torch
 
-from fart.model.nbeats_dataset import build_return_windows
+from fartt.model.nbeats_dataset import build_return_windows
 
 
 def test_build_return_windows_shapes_and_values() -> None:
@@ -177,11 +177,11 @@ def test_build_return_windows_raises_when_too_few_prices() -> None:
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/model/test_nbeats_dataset.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'fart.model.nbeats_dataset'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'fartt.model.nbeats_dataset'`
 
 - [ ] **Step 3: Implement `build_return_windows`**
 
-Create `src/fart/model/nbeats_dataset.py`:
+Create `src/fartt/model/nbeats_dataset.py`:
 
 ```python
 from typing import Tuple
@@ -238,7 +238,7 @@ Expected: `2 passed`
 
 - [ ] **Step 5: Static checks**
 
-Run: `uv run ruff format src/fart/model/nbeats_dataset.py && uv run ruff check src/fart/model/nbeats_dataset.py`
+Run: `uv run ruff format src/fartt/model/nbeats_dataset.py && uv run ruff check src/fartt/model/nbeats_dataset.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -247,7 +247,7 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/model/nbeats_dataset.py tests/model/test_nbeats_dataset.py
+git add src/fartt/model/nbeats_dataset.py tests/model/test_nbeats_dataset.py
 git commit -m "feat: add build_return_windows for N-BEATS return-window construction"
 ```
 
@@ -256,12 +256,12 @@ git commit -m "feat: add build_return_windows for N-BEATS return-window construc
 ## Task 3: `NBeatsNet` — the N-BEATS network
 
 **Files:**
-- Create: `src/fart/model/nbeats.py`
+- Create: `src/fartt/model/nbeats.py`
 - Test: `tests/model/test_nbeats.py` (new)
 
 **Interfaces:**
 - Consumes: `NBeatsConfig` (Task 1).
-- Produces: `NBeatsNet(config: NBeatsConfig)` (`torch.nn.Module`) — importable from `fart.model.nbeats`. `forward(x: Tensor) -> Tensor` where `x` has shape `(batch, config.lookback)` and the return has shape `(batch, 2)` (`[:, 0]` = `mu`, `[:, 1]` = `log_sigma`). Also produces `FORECAST_WIDTH = 2` module-level constant. Used by Task 5 (`train()`).
+- Produces: `NBeatsNet(config: NBeatsConfig)` (`torch.nn.Module`) — importable from `fartt.model.nbeats`. `forward(x: Tensor) -> Tensor` where `x` has shape `(batch, config.lookback)` and the return has shape `(batch, 2)` (`[:, 0]` = `mu`, `[:, 1]` = `log_sigma`). Also produces `FORECAST_WIDTH = 2` module-level constant. Used by Task 5 (`train()`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -270,8 +270,8 @@ Create `tests/model/test_nbeats.py`:
 ```python
 import torch
 
-from fart.model.nbeats import NBeatsNet
-from fart.model.nbeats_config import NBeatsConfig
+from fartt.model.nbeats import NBeatsNet
+from fartt.model.nbeats_config import NBeatsConfig
 
 
 def test_nbeats_net_forward_output_shape() -> None:
@@ -317,11 +317,11 @@ def test_nbeats_net_training_step_produces_finite_gradients() -> None:
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/model/test_nbeats.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'fart.model.nbeats'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'fartt.model.nbeats'`
 
 - [ ] **Step 3: Implement `NBeatsBlock` and `NBeatsNet`**
 
-Create `src/fart/model/nbeats.py`:
+Create `src/fartt/model/nbeats.py`:
 
 ```python
 from typing import Tuple
@@ -329,7 +329,7 @@ from typing import Tuple
 import torch
 from torch import Tensor, nn
 
-from fart.model.nbeats_config import NBeatsConfig
+from fartt.model.nbeats_config import NBeatsConfig
 
 FORECAST_WIDTH = 2
 
@@ -391,7 +391,7 @@ Expected: `2 passed`
 
 - [ ] **Step 5: Static checks**
 
-Run: `uv run ruff format src/fart/model/nbeats.py && uv run ruff check src/fart/model/nbeats.py`
+Run: `uv run ruff format src/fartt/model/nbeats.py && uv run ruff check src/fartt/model/nbeats.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -400,7 +400,7 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/model/nbeats.py tests/model/test_nbeats.py
+git add src/fartt/model/nbeats.py tests/model/test_nbeats.py
 git commit -m "feat: add hand-rolled NBeatsNet with mu/log_sigma forecast head"
 ```
 
@@ -409,7 +409,7 @@ git commit -m "feat: add hand-rolled NBeatsNet with mu/log_sigma forecast head"
 ## Task 4: `months` slicing in `prepare_training_data`
 
 **Files:**
-- Modify: `src/fart/model/train_model.py`
+- Modify: `src/fartt/model/train_model.py`
 - Test: `tests/model/test_train_model.py`
 
 **Interfaces:**
@@ -447,7 +447,7 @@ Expected: FAIL with `TypeError: prepare_training_data() got an unexpected keywor
 
 - [ ] **Step 3: Implement `months` filtering**
 
-In `src/fart/model/train_model.py`, add the import and update `prepare_training_data`:
+In `src/fartt/model/train_model.py`, add the import and update `prepare_training_data`:
 
 ```python
 from pathlib import Path
@@ -456,10 +456,10 @@ from typing import Optional, Tuple
 import polars as pl
 from loguru import logger
 
-from fart.constants import TIMESTAMP
-from fart.features.calculate_technical_indicators import calculate_technical_indicators
-from fart.model.train_test_split import train_test_split
-from fart.utils import get_candle_filepath
+from fartt.constants import TIMESTAMP
+from fartt.features.calculate_technical_indicators import calculate_technical_indicators
+from fartt.model.train_test_split import train_test_split
+from fartt.utils import get_candle_filepath
 
 
 def prepare_training_data(
@@ -472,7 +472,7 @@ def prepare_training_data(
 
     if not filepath.exists():
         raise FileNotFoundError(
-            f"No candle data found at '{filepath}'. Run 'fart download' first."
+            f"No candle data found at '{filepath}'. Run 'fartt download' first."
         )
 
     df = pl.read_csv(filepath)
@@ -506,7 +506,7 @@ Expected: All tests pass, including the new `test_prepare_training_data_filters_
 
 - [ ] **Step 5: Static checks**
 
-Run: `uv run ruff format src/fart/model/train_model.py && uv run ruff check src/fart/model/train_model.py`
+Run: `uv run ruff format src/fartt/model/train_model.py && uv run ruff check src/fartt/model/train_model.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -515,7 +515,7 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/model/train_model.py tests/model/test_train_model.py
+git add src/fartt/model/train_model.py tests/model/test_train_model.py
 git commit -m "feat: filter prepare_training_data to a recent months slice"
 ```
 
@@ -524,21 +524,21 @@ git commit -m "feat: filter prepare_training_data to a recent months slice"
 ## Task 5: `train()` fits N-BEATS and returns per-candle magnitude + confidence
 
 **Files:**
-- Modify: `src/fart/model/train_model.py`
+- Modify: `src/fartt/model/train_model.py`
 - Test: `tests/model/test_train_model.py`
 
 **Interfaces:**
 - Consumes: `prepare_training_data(...)` (Task 4); `NBeatsConfig` (Task 1); `build_return_windows(close_prices: pl.Series, lookback: int) -> Tuple[torch.Tensor, torch.Tensor]` (Task 2); `NBeatsNet(config: NBeatsConfig)` (Task 3).
-- Produces: `train(data_dir: Path, market: str, interval: str, months: Optional[int] = 6, config: Optional[NBeatsConfig] = None) -> Tuple[np.ndarray, np.ndarray]` — returns `(magnitudes, confidences)` over the held-out test windows. This is the function `fart/cli.py` calls (Task 6).
+- Produces: `train(data_dir: Path, market: str, interval: str, months: Optional[int] = 6, config: Optional[NBeatsConfig] = None) -> Tuple[np.ndarray, np.ndarray]` — returns `(magnitudes, confidences)` over the held-out test windows. This is the function `fartt/cli.py` calls (Task 6).
 
 - [ ] **Step 1: Write the failing test**
 
-In `tests/model/test_train_model.py`, add two new imports above the existing `from fart.model.train_model import prepare_training_data, train` line (the existing `from loguru import logger` import stays as-is, don't duplicate it):
+In `tests/model/test_train_model.py`, add two new imports above the existing `from fartt.model.train_model import prepare_training_data, train` line (the existing `from loguru import logger` import stays as-is, don't duplicate it):
 
 ```python
 import numpy as np
 
-from fart.model.nbeats_config import NBeatsConfig
+from fartt.model.nbeats_config import NBeatsConfig
 ```
 
 `train()` now actually fits a model, which needs enough real data to build at least one `lookback=30` window after indicator warm-up and the train/test split — the pre-existing `test_train_logs_prepared_shapes` test's 60-row default fixture is too small for that (it would hit the `ValueError` from `build_return_windows`). Update it to use a larger fixture and a fast config, same reasoning as the new test below:
@@ -599,7 +599,7 @@ Expected: FAIL — `train()` currently returns `None` and takes no `config` argu
 
 - [ ] **Step 3: Implement the N-BEATS fit + inference in `train()`**
 
-Replace the full contents of `src/fart/model/train_model.py` with:
+Replace the full contents of `src/fartt/model/train_model.py` with:
 
 ```python
 from pathlib import Path
@@ -611,13 +611,13 @@ import torch
 from loguru import logger
 from torch import nn
 
-from fart.constants import TIMESTAMP
-from fart.features.calculate_technical_indicators import calculate_technical_indicators
-from fart.model.nbeats import NBeatsNet
-from fart.model.nbeats_config import NBeatsConfig
-from fart.model.nbeats_dataset import build_return_windows
-from fart.model.train_test_split import train_test_split
-from fart.utils import get_candle_filepath
+from fartt.constants import TIMESTAMP
+from fartt.features.calculate_technical_indicators import calculate_technical_indicators
+from fartt.model.nbeats import NBeatsNet
+from fartt.model.nbeats_config import NBeatsConfig
+from fartt.model.nbeats_dataset import build_return_windows
+from fartt.model.train_test_split import train_test_split
+from fartt.utils import get_candle_filepath
 
 
 def prepare_training_data(
@@ -630,7 +630,7 @@ def prepare_training_data(
 
     if not filepath.exists():
         raise FileNotFoundError(
-            f"No candle data found at '{filepath}'. Run 'fart download' first."
+            f"No candle data found at '{filepath}'. Run 'fartt download' first."
         )
 
     df = pl.read_csv(filepath)
@@ -708,7 +708,7 @@ Expected: All tests pass, including `test_train_fits_nbeats_and_returns_magnitud
 
 - [ ] **Step 5: Static checks**
 
-Run: `uv run ruff format src/fart/model/train_model.py && uv run ruff check src/fart/model/train_model.py`
+Run: `uv run ruff format src/fartt/model/train_model.py && uv run ruff check src/fartt/model/train_model.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -717,16 +717,16 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/model/train_model.py tests/model/test_train_model.py
+git add src/fartt/model/train_model.py tests/model/test_train_model.py
 git commit -m "feat: fit NBeatsNet in train() and return per-candle magnitude/confidence"
 ```
 
 ---
 
-## Task 6: `fart train --months` CLI option
+## Task 6: `fartt train --months` CLI option
 
 **Files:**
-- Modify: `src/fart/cli.py`
+- Modify: `src/fartt/cli.py`
 
 **Interfaces:**
 - Consumes: `train_model.train(data_dir: Path, market: str, interval: str, months: Optional[int] = 6, config: Optional[NBeatsConfig] = None) -> Tuple[np.ndarray, np.ndarray]` (Task 5).
@@ -735,7 +735,7 @@ No automated CLI test is added — matching this file's existing convention (the
 
 - [ ] **Step 1: Add the `--months` option**
 
-In `src/fart/cli.py`, replace the `train` command with:
+In `src/fartt/cli.py`, replace the `train` command with:
 
 ```python
 @app.command()
@@ -773,11 +773,11 @@ def train(
 Generate a fixture CSV large enough to clear the default `lookback=30` window requirement after the default 6-month filter and indicator warm-up (per Task 4/5's row-count math, 200+ daily rows is comfortably enough), then run the command against it:
 
 ```bash
-mkdir -p /tmp/fart-cli-smoke
+mkdir -p /tmp/fartt-cli-smoke
 python3 - <<'PYEOF'
 from pathlib import Path
 
-path = Path("/tmp/fart-cli-smoke/BTC-EUR-1d.csv")
+path = Path("/tmp/fartt-cli-smoke/BTC-EUR-1d.csv")
 lines = ["Timestamp,Open,High,Low,Close,Volume\n"]
 base_price = 100.0
 for i in range(200):
@@ -787,16 +787,16 @@ for i in range(200):
 path.write_text("".join(lines))
 PYEOF
 
-uv run fart train /tmp/fart-cli-smoke BTC-EUR 1d --months 6
+uv run fartt train /tmp/fartt-cli-smoke BTC-EUR 1d --months 6
 
-rm -rf /tmp/fart-cli-smoke
+rm -rf /tmp/fartt-cli-smoke
 ```
 
 Expected: the command exits without a traceback; stderr shows an INFO log line containing `Prepared training data: X_train=(...` and a second INFO line containing `N-BEATS quick prototype: ... test candles, magnitude mean=... confidence mean=...`.
 
 - [ ] **Step 3: Static checks**
 
-Run: `uv run ruff format src/fart/cli.py && uv run ruff check src/fart/cli.py`
+Run: `uv run ruff format src/fartt/cli.py && uv run ruff check src/fartt/cli.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -805,8 +805,8 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/fart/cli.py
-git commit -m "feat: add --months option to fart train CLI command"
+git add src/fartt/cli.py
+git commit -m "feat: add --months option to fartt train CLI command"
 ```
 
 ---

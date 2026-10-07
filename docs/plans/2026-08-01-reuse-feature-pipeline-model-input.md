@@ -2,19 +2,19 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `fart/model/train_model.py` load the existing technical-indicator feature pipeline into a clean train/test split, wired up behind a new `fart train` CLI command, without modifying `calculate_technical_indicators.py` or `train_test_split.py`.
+**Goal:** Make `fartt/model/train_model.py` load the existing technical-indicator feature pipeline into a clean train/test split, wired up behind a new `fartt train` CLI command, without modifying `calculate_technical_indicators.py` or `train_test_split.py`.
 
-**Architecture:** A shared `get_candle_filepath` helper in `fart/utils.py` centralizes the CSV naming convention (used by both `Downloader` and the new loader). `fart/model/train_model.py` gains `prepare_training_data()` (load CSV → `calculate_technical_indicators` → drop warm-up nulls → `train_test_split`) and `train()` (CLI entry point that calls it and logs shapes). `fart/cli.py` gains a `train` command mirroring the existing `download` command's option pattern.
+**Architecture:** A shared `get_candle_filepath` helper in `fartt/utils.py` centralizes the CSV naming convention (used by both `Downloader` and the new loader). `fartt/model/train_model.py` gains `prepare_training_data()` (load CSV → `calculate_technical_indicators` → drop warm-up nulls → `train_test_split`) and `train()` (CLI entry point that calls it and logs shapes). `fartt/cli.py` gains a `train` command mirroring the existing `download` command's option pattern.
 
 **Tech Stack:** Python 3.11+, Polars, pandas, scikit-learn (via existing `train_test_split.py`), TA-Lib (via existing `calculate_technical_indicators.py`), Typer, loguru, pytest, uv.
 
 ## Global Constraints
 
-- Do not modify `src/fart/features/calculate_technical_indicators.py` or its computation logic in `src/fart/model/train_test_split.py` — reuse both unmodified (spec requirement).
+- Do not modify `src/fartt/features/calculate_technical_indicators.py` or its computation logic in `src/fartt/model/train_test_split.py` — reuse both unmodified (spec requirement).
 - Never reference "superpowers" in code, file paths, or directory structure (CLAUDE.md).
 - Indicator warm-up nulls are handled by dropping rows (`drop_nulls()`), not imputation (spec decision).
-- `fart train` locates its input CSV the same way `fart download` writes it: `data_dir / f"{market}-{interval}.csv"`, derived from `Settings` (spec decision) — not `get_last_modified_data_file`.
-- `fart train` requires no Bitvavo API credentials — it only reads the local CSV cache.
+- `fartt train` locates its input CSV the same way `fartt download` writes it: `data_dir / f"{market}-{interval}.csv"`, derived from `Settings` (spec decision) — not `get_last_modified_data_file`.
+- `fartt train` requires no Bitvavo API credentials — it only reads the local CSV cache.
 - New dependencies needed: `pandas`, `scikit-learn`, `ta-lib` are not yet declared in `pyproject.toml`. This plan declares them; it does **not** install the system TA-Lib C library — that's on the operator to install (e.g. `brew install ta-lib` on macOS) before `uv sync`/tests will succeed for Task 3 onward.
 - `pyproject.toml`'s `[tool.pytest.ini_options] addopts` includes `--cov-fail-under=80` repo-wide. Scoped test runs in this plan (pointing at one test file) may still show a non-zero process exit due to that coverage gate even when every printed test result is `PASSED`. Treat the printed per-test PASSED/FAILED line as ground truth, not the process exit code.
 
@@ -23,11 +23,11 @@
 ## Task 1: Shared candle-file path helper
 
 **Files:**
-- Modify: `src/fart/utils.py`
+- Modify: `src/fartt/utils.py`
 - Test: `tests/utils/test_get_candle_filepath.py` (new)
 
 **Interfaces:**
-- Produces: `get_candle_filepath(settings: Settings) -> Path` — importable from `fart.utils`. Used by Task 2 (`Downloader`) and Task 3 (`prepare_training_data`).
+- Produces: `get_candle_filepath(settings: Settings) -> Path` — importable from `fartt.utils`. Used by Task 2 (`Downloader`) and Task 3 (`prepare_training_data`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -36,42 +36,42 @@ Create `tests/utils/test_get_candle_filepath.py`:
 ```python
 from pathlib import Path
 
-from fart.settings import Interval, Settings
-from fart.utils import get_candle_filepath
+from fartt.settings import Interval, Settings
+from fartt.utils import get_candle_filepath
 
 
 def test_get_candle_filepath() -> None:
     settings = Settings(
-        data_dir=Path("/tmp/fart-test-data"),
+        data_dir=Path("/tmp/fartt-test-data"),
         market="BTC-EUR",
         interval=Interval.ONE_DAY,
     )
 
     filepath = get_candle_filepath(settings)
 
-    assert filepath == Path("/tmp/fart-test-data/BTC-EUR-1d.csv")
+    assert filepath == Path("/tmp/fartt-test-data/BTC-EUR-1d.csv")
 
 
 def test_get_candle_filepath_different_market_and_interval() -> None:
     settings = Settings(
-        data_dir=Path("/tmp/fart-test-data"),
+        data_dir=Path("/tmp/fartt-test-data"),
         market="ETH-EUR",
         interval=Interval.ONE_HOUR,
     )
 
     filepath = get_candle_filepath(settings)
 
-    assert filepath == Path("/tmp/fart-test-data/ETH-EUR-1h.csv")
+    assert filepath == Path("/tmp/fartt-test-data/ETH-EUR-1h.csv")
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/utils/test_get_candle_filepath.py -v`
-Expected: FAIL with `ImportError: cannot import name 'get_candle_filepath' from 'fart.utils'`
+Expected: FAIL with `ImportError: cannot import name 'get_candle_filepath' from 'fartt.utils'`
 
 - [ ] **Step 3: Implement `get_candle_filepath`**
 
-In `src/fart/utils.py`, insert after `update_settings` (after line 20, before the existing `get_last_modified_data_file` at line 23):
+In `src/fartt/utils.py`, insert after `update_settings` (after line 20, before the existing `get_last_modified_data_file` at line 23):
 
 ```python
 def get_candle_filepath(settings: Settings) -> Path:
@@ -80,7 +80,7 @@ def get_candle_filepath(settings: Settings) -> Path:
     return settings.data_dir / f"{market}-{interval}.csv"
 ```
 
-No new imports needed — `Path` and `Settings` are already imported at the top of `src/fart/utils.py`.
+No new imports needed — `Path` and `Settings` are already imported at the top of `src/fartt/utils.py`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -90,7 +90,7 @@ Expected: `2 passed`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/fart/utils.py tests/utils/test_get_candle_filepath.py
+git add src/fartt/utils.py tests/utils/test_get_candle_filepath.py
 git commit -m "feat: add get_candle_filepath helper for shared CSV path convention"
 ```
 
@@ -99,7 +99,7 @@ git commit -m "feat: add get_candle_filepath helper for shared CSV path conventi
 ## Task 2: Point Downloader at the shared path helper
 
 **Files:**
-- Modify: `src/fart/downloader.py:11` (imports), `src/fart/downloader.py:55-60` (`_determine_filepath`)
+- Modify: `src/fartt/downloader.py:11` (imports), `src/fartt/downloader.py:55-60` (`_determine_filepath`)
 
 **Interfaces:**
 - Consumes: `get_candle_filepath(settings: Settings) -> Path` from Task 1.
@@ -108,19 +108,19 @@ No automated test is added for this task: `Downloader.__init__` constructs a rea
 
 - [ ] **Step 1: Add the import**
 
-In `src/fart/downloader.py`, change line 11:
+In `src/fartt/downloader.py`, change line 11:
 
 ```python
-from fart.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
-from fart.settings import Candle, Interval, Settings
+from fartt.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
+from fartt.settings import Candle, Interval, Settings
 ```
 
 to:
 
 ```python
-from fart.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
-from fart.settings import Candle, Interval, Settings
-from fart.utils import get_candle_filepath
+from fartt.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
+from fartt.settings import Candle, Interval, Settings
+from fartt.utils import get_candle_filepath
 ```
 
 - [ ] **Step 2: Replace the inline path formula**
@@ -146,7 +146,7 @@ with:
 
 - [ ] **Step 3: Verify with static checks**
 
-Run: `uv run ruff check src/fart/downloader.py`
+Run: `uv run ruff check src/fartt/downloader.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -155,7 +155,7 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/fart/downloader.py
+git add src/fartt/downloader.py
 git commit -m "refactor: reuse get_candle_filepath in Downloader"
 ```
 
@@ -165,12 +165,12 @@ git commit -m "refactor: reuse get_candle_filepath in Downloader"
 
 **Files:**
 - Modify: `pyproject.toml` (dependencies)
-- Modify: `src/fart/model/train_model.py` (currently empty)
+- Modify: `src/fartt/model/train_model.py` (currently empty)
 - Test: `tests/model/test_train_model.py` (new)
 
 **Interfaces:**
 - Consumes: `get_candle_filepath(settings: Settings) -> Path` (Task 1); `calculate_technical_indicators(df: pl.DataFrame) -> pl.DataFrame` (existing, unmodified); `train_test_split(df: pl.DataFrame, target: str = CLOSE, test_size: float = 0.2) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]` (existing, unmodified).
-- Produces: `prepare_training_data(settings: Settings) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]` — importable from `fart.model.train_model`. Used by Task 4's `train()`.
+- Produces: `prepare_training_data(settings: Settings) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]` — importable from `fartt.model.train_model`. Used by Task 4's `train()`.
 
 - [ ] **Step 1: Declare the new dependencies**
 
@@ -196,8 +196,8 @@ from pathlib import Path
 
 import pytest
 
-from fart.model.train_model import prepare_training_data
-from fart.settings import Interval, Settings
+from fartt.model.train_model import prepare_training_data
+from fartt.settings import Interval, Settings
 
 CSV_HEADER = "Timestamp,Open,High,Low,Close,Volume\n"
 
@@ -249,11 +249,11 @@ def test_prepare_training_data_missing_csv_raises(tmp_path: Path) -> None:
 - [ ] **Step 4: Run tests to verify they fail**
 
 Run: `uv run pytest tests/model/test_train_model.py -v`
-Expected: FAIL with `ImportError: cannot import name 'prepare_training_data' from 'fart.model.train_model'`
+Expected: FAIL with `ImportError: cannot import name 'prepare_training_data' from 'fartt.model.train_model'`
 
 - [ ] **Step 5: Implement `prepare_training_data`**
 
-Write `src/fart/model/train_model.py`:
+Write `src/fartt/model/train_model.py`:
 
 ```python
 from typing import Tuple
@@ -261,10 +261,10 @@ from typing import Tuple
 import pandas as pd
 import polars as pl
 
-from fart.features.calculate_technical_indicators import calculate_technical_indicators
-from fart.model.train_test_split import train_test_split
-from fart.settings import Settings
-from fart.utils import get_candle_filepath
+from fartt.features.calculate_technical_indicators import calculate_technical_indicators
+from fartt.model.train_test_split import train_test_split
+from fartt.settings import Settings
+from fartt.utils import get_candle_filepath
 
 
 def prepare_training_data(
@@ -274,7 +274,7 @@ def prepare_training_data(
 
     if not filepath.exists():
         raise FileNotFoundError(
-            f"No candle data found at '{filepath}'. Run 'fart download' first."
+            f"No candle data found at '{filepath}'. Run 'fartt download' first."
         )
 
     df = pl.read_csv(filepath)
@@ -292,7 +292,7 @@ Expected: `2 passed`
 - [ ] **Step 7: Commit**
 
 ```bash
-git add pyproject.toml uv.lock src/fart/model/train_model.py tests/model/test_train_model.py
+git add pyproject.toml uv.lock src/fartt/model/train_model.py tests/model/test_train_model.py
 git commit -m "feat: load and split technical-indicator features for training"
 ```
 
@@ -301,19 +301,19 @@ git commit -m "feat: load and split technical-indicator features for training"
 ## Task 4: `train()` — CLI-facing entry point with logging
 
 **Files:**
-- Modify: `src/fart/model/train_model.py`
+- Modify: `src/fartt/model/train_model.py`
 - Test: `tests/model/test_train_model.py`
 
 **Interfaces:**
 - Consumes: `prepare_training_data(settings: Settings) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]` (Task 3).
-- Produces: `train(settings: Settings) -> None` — importable from `fart.model.train_model`. Used by Task 5's `fart train` CLI command.
+- Produces: `train(settings: Settings) -> None` — importable from `fartt.model.train_model`. Used by Task 5's `fartt train` CLI command.
 
 - [ ] **Step 1: Write the failing test**
 
 In `tests/model/test_train_model.py`, change the import line:
 
 ```python
-from fart.model.train_model import prepare_training_data
+from fartt.model.train_model import prepare_training_data
 ```
 
 to:
@@ -321,10 +321,10 @@ to:
 ```python
 from loguru import logger
 
-from fart.model.train_model import prepare_training_data, train
+from fartt.model.train_model import prepare_training_data, train
 ```
 
-(`from loguru import logger` is a new top-level import; `train` is added to the existing `fart.model.train_model` import.)
+(`from loguru import logger` is a new top-level import; `train` is added to the existing `fartt.model.train_model` import.)
 
 Then append this test function to the end of the file:
 
@@ -351,11 +351,11 @@ def test_train_logs_prepared_shapes(tmp_path: Path) -> None:
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/model/test_train_model.py::test_train_logs_prepared_shapes -v`
-Expected: FAIL with `ImportError: cannot import name 'train' from 'fart.model.train_model'`
+Expected: FAIL with `ImportError: cannot import name 'train' from 'fartt.model.train_model'`
 
 - [ ] **Step 3: Implement `train`**
 
-Replace the full contents of `src/fart/model/train_model.py` with:
+Replace the full contents of `src/fartt/model/train_model.py` with:
 
 ```python
 from loguru import logger
@@ -364,10 +364,10 @@ from typing import Tuple
 import pandas as pd
 import polars as pl
 
-from fart.features.calculate_technical_indicators import calculate_technical_indicators
-from fart.model.train_test_split import train_test_split
-from fart.settings import Settings
-from fart.utils import get_candle_filepath
+from fartt.features.calculate_technical_indicators import calculate_technical_indicators
+from fartt.model.train_test_split import train_test_split
+from fartt.settings import Settings
+from fartt.utils import get_candle_filepath
 
 
 def prepare_training_data(
@@ -377,7 +377,7 @@ def prepare_training_data(
 
     if not filepath.exists():
         raise FileNotFoundError(
-            f"No candle data found at '{filepath}'. Run 'fart download' first."
+            f"No candle data found at '{filepath}'. Run 'fartt download' first."
         )
 
     df = pl.read_csv(filepath)
@@ -403,39 +403,39 @@ Expected: `3 passed`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/fart/model/train_model.py tests/model/test_train_model.py
+git add src/fartt/model/train_model.py tests/model/test_train_model.py
 git commit -m "feat: add train() entry point that logs prepared data shapes"
 ```
 
 ---
 
-## Task 5: `fart train` CLI command
+## Task 5: `fartt train` CLI command
 
 **Files:**
-- Modify: `src/fart/cli.py`
+- Modify: `src/fartt/cli.py`
 
 **Interfaces:**
-- Consumes: `train(settings: Settings) -> None` from `fart.model.train_model` (Task 4).
+- Consumes: `train(settings: Settings) -> None` from `fartt.model.train_model` (Task 4).
 
 No automated CLI test is added — per the approved design spec this is optional/out of scope. Verification is a manual end-to-end run of the real command against a generated fixture CSV.
 
 - [ ] **Step 1: Add the import**
 
-In `src/fart/cli.py`, change line 9:
+In `src/fartt/cli.py`, change line 9:
 
 ```python
-from fart.downloader import Downloader
-from fart.settings import Settings
-from fart.utils import update_settings
+from fartt.downloader import Downloader
+from fartt.settings import Settings
+from fartt.utils import update_settings
 ```
 
 to:
 
 ```python
-from fart.downloader import Downloader
-from fart.model import train_model
-from fart.settings import Settings
-from fart.utils import update_settings
+from fartt.downloader import Downloader
+from fartt.model import train_model
+from fartt.settings import Settings
+from fartt.utils import update_settings
 ```
 
 - [ ] **Step 2: Add the `train` command**
@@ -476,11 +476,11 @@ def train(
 Generate a fixture CSV and run the command against it:
 
 ```bash
-mkdir -p /tmp/fart-cli-smoke
+mkdir -p /tmp/fartt-cli-smoke
 python3 - <<'PYEOF'
 from pathlib import Path
 
-path = Path("/tmp/fart-cli-smoke/BTC-EUR-1d.csv")
+path = Path("/tmp/fartt-cli-smoke/BTC-EUR-1d.csv")
 lines = ["Timestamp,Open,High,Low,Close,Volume\n"]
 base_price = 100.0
 for i in range(60):
@@ -490,16 +490,16 @@ for i in range(60):
 path.write_text("".join(lines))
 PYEOF
 
-uv run fart train --data-dir /tmp/fart-cli-smoke --market BTC-EUR --interval 1d
+uv run fartt train --data-dir /tmp/fartt-cli-smoke --market BTC-EUR --interval 1d
 
-rm -rf /tmp/fart-cli-smoke
+rm -rf /tmp/fartt-cli-smoke
 ```
 
 Expected: the command exits without a traceback and stderr shows an INFO log line containing `Prepared training data: X_train=(...` with nonzero shapes.
 
 - [ ] **Step 4: Static checks**
 
-Run: `uv run ruff check src/fart/cli.py`
+Run: `uv run ruff check src/fartt/cli.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -508,8 +508,8 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/fart/cli.py
-git commit -m "feat: add fart train CLI command"
+git add src/fartt/cli.py
+git commit -m "feat: add fartt train CLI command"
 ```
 
 ---
@@ -520,5 +520,5 @@ git commit -m "feat: add fart train CLI command"
 - Dropping or selecting feature columns (e.g. `Timestamp`) from `X_train`/`X_test`.
 - Any actual model fitting — `train()` logs shapes only.
 - Filling in `predict_model.py` (Epic #1 Story 5).
-- Fixing pre-existing broken tests/imports noted in `CLAUDE.md` (e.g. `tests/model/test_train_test_split.py` importing `fart.common.constants`).
+- Fixing pre-existing broken tests/imports noted in `CLAUDE.md` (e.g. `tests/model/test_train_test_split.py` importing `fartt.common.constants`).
 - Updating the stale `README.md`/`Makefile` `make train`/`make data` references — those describe a different (pre-CLI, script-invoked) mechanism that doesn't exist in the current layout and is unrelated to this story.

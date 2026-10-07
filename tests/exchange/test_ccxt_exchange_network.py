@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from fart.exchange import CcxtExchange
+from fartt.exchange import CcxtExchange
 
 HOUR_MS = 3_600_000
 

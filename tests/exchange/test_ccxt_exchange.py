@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from fart.exchange import Candle, CcxtExchange
+from fartt.exchange import Candle, CcxtExchange
 
 HOUR_MS = 3_600_000
 

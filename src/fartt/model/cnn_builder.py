@@ -1,7 +1,7 @@
 from torch import nn
 
-from fart.model.blocks import conv_block
-from fart.model.cnn_config import CNNConfig
+from fartt.model.blocks import conv_block
+from fartt.model.cnn_config import CNNConfig
 
 
 class CNNBuilder:

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `fart train` work end-to-end against the complete cached candle history (not just a small recent slice), on both CPU and Apple Silicon MPS, and save each trained model as a versioned, reloadable artifact.
+**Goal:** Make `fartt train` work end-to-end against the complete cached candle history (not just a small recent slice), on both CPU and Apple Silicon MPS, and save each trained model as a versioned, reloadable artifact.
 
-**Architecture:** `train_model.py`'s training loop switches from full-batch to minibatch (`torch.utils.data.DataLoader`/`TensorDataset`), so it scales to arbitrarily large window counts, and runs on whichever device `fart/model/device.py::get_device()` auto-detects (MPS if available, else CPU). At the end of every run, the fitted model is saved via new `fart/model/nbeats_persistence.py::save_model()` to a datetime-versioned path from new `fart/utils.py::get_model_filepath()`, so repeated runs accumulate distinct artifacts instead of overwriting. `fart/cli.py`'s `train` command gains `--full` (train on complete history), `--artifacts-dir`, and `--device` options.
+**Architecture:** `train_model.py`'s training loop switches from full-batch to minibatch (`torch.utils.data.DataLoader`/`TensorDataset`), so it scales to arbitrarily large window counts, and runs on whichever device `fartt/model/device.py::get_device()` auto-detects (MPS if available, else CPU). At the end of every run, the fitted model is saved via new `fartt/model/nbeats_persistence.py::save_model()` to a datetime-versioned path from new `fartt/utils.py::get_model_filepath()`, so repeated runs accumulate distinct artifacts instead of overwriting. `fartt/cli.py`'s `train` command gains `--full` (train on complete history), `--artifacts-dir`, and `--device` options.
 
 **Tech Stack:** Python 3.11+, PyTorch 2.9 (CPU/MPS), Polars, NumPy, Pydantic, Typer, loguru, pytest, uv.
 
@@ -27,7 +27,7 @@
 ## Task 1: `NBeatsConfig` gains `batch_size`
 
 **Files:**
-- Modify: `src/fart/model/nbeats_config.py`
+- Modify: `src/fartt/model/nbeats_config.py`
 - Test: `tests/model/test_nbeats_config.py`
 
 **Interfaces:**
@@ -57,7 +57,7 @@ Expected: `test_nbeats_config_default_batch_size` FAILs with `AttributeError: 'N
 
 - [ ] **Step 3: Add the `batch_size` field**
 
-In `src/fart/model/nbeats_config.py`, add a docstring line and the field:
+In `src/fartt/model/nbeats_config.py`, add a docstring line and the field:
 
 ```python
 class NBeatsConfig(BaseModel):
@@ -92,7 +92,7 @@ Expected: `4 passed`
 
 - [ ] **Step 5: Static checks**
 
-Run: `uv run ruff format src/fart/model/nbeats_config.py && uv run ruff check src/fart/model/nbeats_config.py`
+Run: `uv run ruff format src/fartt/model/nbeats_config.py && uv run ruff check src/fartt/model/nbeats_config.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -101,7 +101,7 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/model/nbeats_config.py tests/model/test_nbeats_config.py
+git add src/fartt/model/nbeats_config.py tests/model/test_nbeats_config.py
 git commit -m "feat: add batch_size to NBeatsConfig"
 ```
 
@@ -110,11 +110,11 @@ git commit -m "feat: add batch_size to NBeatsConfig"
 ## Task 2: `get_device()` — MPS/CPU auto-detection
 
 **Files:**
-- Create: `src/fart/model/device.py`
+- Create: `src/fartt/model/device.py`
 - Test: `tests/model/test_device.py` (new)
 
 **Interfaces:**
-- Produces: `get_device() -> torch.device` — importable from `fart.model.device`. Returns `torch.device("mps")` if `torch.backends.mps.is_available()`, else `torch.device("cpu")`. Used by Task 5 (`train()`).
+- Produces: `get_device() -> torch.device` — importable from `fartt.model.device`. Returns `torch.device("mps")` if `torch.backends.mps.is_available()`, else `torch.device("cpu")`. Used by Task 5 (`train()`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -123,7 +123,7 @@ Create `tests/model/test_device.py`. Patch target is `torch.backends.mps.is_avai
 ```python
 from unittest.mock import patch
 
-from fart.model.device import get_device
+from fartt.model.device import get_device
 
 
 @patch("torch.backends.mps.is_available", return_value=True)
@@ -143,11 +143,11 @@ def test_get_device_returns_cpu_when_mps_unavailable(_mock_mps_available: object
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/model/test_device.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'fart.model.device'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'fartt.model.device'`
 
 - [ ] **Step 3: Implement `get_device`**
 
-Create `src/fart/model/device.py`:
+Create `src/fartt/model/device.py`:
 
 ```python
 import torch
@@ -179,7 +179,7 @@ Expected: `2 passed`
 
 - [ ] **Step 5: Static checks**
 
-Run: `uv run ruff format src/fart/model/device.py && uv run ruff check src/fart/model/device.py`
+Run: `uv run ruff format src/fartt/model/device.py && uv run ruff check src/fartt/model/device.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -188,7 +188,7 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/model/device.py tests/model/test_device.py
+git add src/fartt/model/device.py tests/model/test_device.py
 git commit -m "feat: add get_device for MPS/CPU auto-detection"
 ```
 
@@ -197,13 +197,13 @@ git commit -m "feat: add get_device for MPS/CPU auto-detection"
 ## Task 3: `get_model_filepath` and `get_latest_model_filepath`
 
 **Files:**
-- Modify: `src/fart/utils.py`
+- Modify: `src/fartt/utils.py`
 - Test: `tests/utils/test_get_model_filepath.py` (new)
 - Test: `tests/utils/test_get_latest_model_filepath.py` (new)
 
 **Interfaces:**
-- Produces: `get_model_filepath(artifacts_dir: Path, market: str, interval: str, timestamp: datetime) -> Path` — importable from `fart.utils`. Returns `artifacts_dir / f"{timestamp:%Y%m%dT%H%M%S%fZ}-{market}-{interval}-nbeats.pt"`.
-- Produces: `get_latest_model_filepath(artifacts_dir: Path, market: str, interval: str) -> Path` — importable from `fart.utils`. Globs `artifacts_dir` for `*-{market}-{interval}-nbeats.pt` and returns the max by filename. Raises `ValueError` if none match.
+- Produces: `get_model_filepath(artifacts_dir: Path, market: str, interval: str, timestamp: datetime) -> Path` — importable from `fartt.utils`. Returns `artifacts_dir / f"{timestamp:%Y%m%dT%H%M%S%fZ}-{market}-{interval}-nbeats.pt"`.
+- Produces: `get_latest_model_filepath(artifacts_dir: Path, market: str, interval: str) -> Path` — importable from `fartt.utils`. Globs `artifacts_dir` for `*-{market}-{interval}-nbeats.pt` and returns the max by filename. Raises `ValueError` if none match.
 - Both used by Task 5 (`train()`, for saving) and available for future consumers (the not-yet-built backtest harness, #9) to look up the latest artifact.
 
 - [ ] **Step 1: Write the failing tests**
@@ -214,21 +214,21 @@ Create `tests/utils/test_get_model_filepath.py`:
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fart.utils import get_model_filepath
+from fartt.utils import get_model_filepath
 
 
 def test_get_model_filepath() -> None:
     timestamp = datetime(2026, 8, 4, 14, 47, 49, 32031, tzinfo=timezone.utc)
 
     filepath = get_model_filepath(
-        artifacts_dir=Path("/tmp/fart-test-artifacts"),
+        artifacts_dir=Path("/tmp/fartt-test-artifacts"),
         market="BTC-EUR",
         interval="1d",
         timestamp=timestamp,
     )
 
     assert filepath == Path(
-        "/tmp/fart-test-artifacts/20260804T144749032031Z-BTC-EUR-1d-nbeats.pt"
+        "/tmp/fartt-test-artifacts/20260804T144749032031Z-BTC-EUR-1d-nbeats.pt"
     )
 
 
@@ -236,14 +236,14 @@ def test_get_model_filepath_different_market_and_interval() -> None:
     timestamp = datetime(2026, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
 
     filepath = get_model_filepath(
-        artifacts_dir=Path("/tmp/fart-test-artifacts"),
+        artifacts_dir=Path("/tmp/fartt-test-artifacts"),
         market="ETH-EUR",
         interval="1h",
         timestamp=timestamp,
     )
 
     assert filepath == Path(
-        "/tmp/fart-test-artifacts/20260101T000000000000Z-ETH-EUR-1h-nbeats.pt"
+        "/tmp/fartt-test-artifacts/20260101T000000000000Z-ETH-EUR-1h-nbeats.pt"
     )
 ```
 
@@ -255,7 +255,7 @@ from pathlib import Path
 
 import pytest
 
-from fart.utils import get_latest_model_filepath
+from fartt.utils import get_latest_model_filepath
 
 
 def test_get_latest_model_filepath_picks_max_by_filename() -> None:
@@ -280,11 +280,11 @@ def test_get_latest_model_filepath_no_matches_raises() -> None:
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/utils/test_get_model_filepath.py tests/utils/test_get_latest_model_filepath.py -v`
-Expected: FAIL with `ImportError: cannot import name 'get_model_filepath' from 'fart.utils'`
+Expected: FAIL with `ImportError: cannot import name 'get_model_filepath' from 'fartt.utils'`
 
 - [ ] **Step 3: Implement both functions**
 
-In `src/fart/utils.py`, add the `datetime` import at the top and both new functions between `get_candle_filepath` and `get_last_modified_data_file`:
+In `src/fartt/utils.py`, add the `datetime` import at the top and both new functions between `get_candle_filepath` and `get_last_modified_data_file`:
 
 ```python
 from datetime import datetime
@@ -348,7 +348,7 @@ Expected: `4 passed`
 
 - [ ] **Step 5: Static checks**
 
-Run: `uv run ruff format src/fart/utils.py && uv run ruff check src/fart/utils.py`
+Run: `uv run ruff format src/fartt/utils.py && uv run ruff check src/fartt/utils.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -357,7 +357,7 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/utils.py tests/utils/test_get_model_filepath.py tests/utils/test_get_latest_model_filepath.py
+git add src/fartt/utils.py tests/utils/test_get_model_filepath.py tests/utils/test_get_latest_model_filepath.py
 git commit -m "feat: add get_model_filepath and get_latest_model_filepath"
 ```
 
@@ -366,12 +366,12 @@ git commit -m "feat: add get_model_filepath and get_latest_model_filepath"
 ## Task 4: `nbeats_persistence.py` — save/load a checkpoint
 
 **Files:**
-- Create: `src/fart/model/nbeats_persistence.py`
+- Create: `src/fartt/model/nbeats_persistence.py`
 - Test: `tests/model/test_nbeats_persistence.py` (new)
 
 **Interfaces:**
-- Consumes: `NBeatsNet(config: NBeatsConfig)` and `NBeatsConfig` (both pre-existing, from `fart.model.nbeats` / `fart.model.nbeats_config`).
-- Produces: `save_model(model: NBeatsNet, config: NBeatsConfig, path: Path) -> None` and `load_model(path: Path) -> NBeatsNet` — importable from `fart.model.nbeats_persistence`. Used by Task 5 (`train()`).
+- Consumes: `NBeatsNet(config: NBeatsConfig)` and `NBeatsConfig` (both pre-existing, from `fartt.model.nbeats` / `fartt.model.nbeats_config`).
+- Produces: `save_model(model: NBeatsNet, config: NBeatsConfig, path: Path) -> None` and `load_model(path: Path) -> NBeatsNet` — importable from `fartt.model.nbeats_persistence`. Used by Task 5 (`train()`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -382,9 +382,9 @@ from pathlib import Path
 
 import torch
 
-from fart.model.nbeats import NBeatsNet
-from fart.model.nbeats_config import NBeatsConfig
-from fart.model.nbeats_persistence import load_model, save_model
+from fartt.model.nbeats import NBeatsNet
+from fartt.model.nbeats_config import NBeatsConfig
+from fartt.model.nbeats_persistence import load_model, save_model
 
 
 def test_save_and_load_model_round_trip(tmp_path: Path) -> None:
@@ -423,11 +423,11 @@ def test_save_model_creates_missing_parent_directory(tmp_path: Path) -> None:
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/model/test_nbeats_persistence.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'fart.model.nbeats_persistence'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'fartt.model.nbeats_persistence'`
 
 - [ ] **Step 3: Implement `save_model` and `load_model`**
 
-Create `src/fart/model/nbeats_persistence.py`:
+Create `src/fartt/model/nbeats_persistence.py`:
 
 ```python
 from pathlib import Path
@@ -435,8 +435,8 @@ from typing import Any, Dict, cast
 
 import torch
 
-from fart.model.nbeats import NBeatsNet
-from fart.model.nbeats_config import NBeatsConfig
+from fartt.model.nbeats import NBeatsNet
+from fartt.model.nbeats_config import NBeatsConfig
 
 
 def save_model(model: NBeatsNet, config: NBeatsConfig, path: Path) -> None:
@@ -493,7 +493,7 @@ Expected: `2 passed`
 
 - [ ] **Step 5: Static checks**
 
-Run: `uv run ruff format src/fart/model/nbeats_persistence.py && uv run ruff check src/fart/model/nbeats_persistence.py`
+Run: `uv run ruff format src/fartt/model/nbeats_persistence.py && uv run ruff check src/fartt/model/nbeats_persistence.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -502,7 +502,7 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/model/nbeats_persistence.py tests/model/test_nbeats_persistence.py
+git add src/fartt/model/nbeats_persistence.py tests/model/test_nbeats_persistence.py
 git commit -m "feat: add save_model/load_model for NBeatsNet checkpoints"
 ```
 
@@ -511,12 +511,12 @@ git commit -m "feat: add save_model/load_model for NBeatsNet checkpoints"
 ## Task 5: `train()` — minibatch training, device placement, versioned save
 
 **Files:**
-- Modify: `src/fart/model/train_model.py`
+- Modify: `src/fartt/model/train_model.py`
 - Test: `tests/model/test_train_model.py`
 
 **Interfaces:**
 - Consumes: `NBeatsConfig.batch_size` (Task 1); `get_device() -> torch.device` (Task 2); `get_model_filepath(artifacts_dir, market, interval, timestamp) -> Path` (Task 3); `save_model(model, config, path) -> None` (Task 4).
-- Produces: `train(data_dir: Path, market: str, interval: str, artifacts_dir: Path, months: Optional[int] = 6, config: Optional[NBeatsConfig] = None, device: Optional[torch.device] = None) -> Tuple[np.ndarray, np.ndarray]` — `artifacts_dir` is new and required (no default); `device` is new and optional (`None` auto-detects via `get_device()`). This is the function `fart/cli.py` calls (Task 6).
+- Produces: `train(data_dir: Path, market: str, interval: str, artifacts_dir: Path, months: Optional[int] = 6, config: Optional[NBeatsConfig] = None, device: Optional[torch.device] = None) -> Tuple[np.ndarray, np.ndarray]` — `artifacts_dir` is new and required (no default); `device` is new and optional (`None` auto-detects via `get_device()`). This is the function `fartt/cli.py` calls (Task 6).
 
 - [ ] **Step 1: Update existing tests and write the new failing tests**
 
@@ -642,7 +642,7 @@ Expected: The four `train(...)`-calling tests FAIL with `TypeError: train() got 
 
 - [ ] **Step 3: Implement minibatch training, device placement, and versioned save**
 
-Replace the full contents of `src/fart/model/train_model.py` with:
+Replace the full contents of `src/fartt/model/train_model.py` with:
 
 ```python
 from datetime import datetime, timezone
@@ -656,16 +656,16 @@ from loguru import logger
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from fart.constants import TIMESTAMP
-from fart.features.calculate_technical_indicators import calculate_technical_indicators
-from fart.features.sort_and_deduplicate_candles import sort_and_deduplicate_candles
-from fart.model.device import get_device
-from fart.model.nbeats import NBeatsNet
-from fart.model.nbeats_config import NBeatsConfig
-from fart.model.nbeats_dataset import build_return_windows
-from fart.model.nbeats_persistence import save_model
-from fart.model.train_test_split import train_test_split
-from fart.utils import get_candle_filepath, get_model_filepath
+from fartt.constants import TIMESTAMP
+from fartt.features.calculate_technical_indicators import calculate_technical_indicators
+from fartt.features.sort_and_deduplicate_candles import sort_and_deduplicate_candles
+from fartt.model.device import get_device
+from fartt.model.nbeats import NBeatsNet
+from fartt.model.nbeats_config import NBeatsConfig
+from fartt.model.nbeats_dataset import build_return_windows
+from fartt.model.nbeats_persistence import save_model
+from fartt.model.train_test_split import train_test_split
+from fartt.utils import get_candle_filepath, get_model_filepath
 
 
 def prepare_training_data(
@@ -678,7 +678,7 @@ def prepare_training_data(
 
     if not filepath.exists():
         raise FileNotFoundError(
-            f"No candle data found at '{filepath}'. Run 'fart download' first."
+            f"No candle data found at '{filepath}'. Run 'fartt download' first."
         )
 
     df = pl.read_csv(filepath)
@@ -793,7 +793,7 @@ Expected: `8 passed`
 
 - [ ] **Step 5: Static checks**
 
-Run: `uv run ruff format src/fart/model/train_model.py tests/model/test_train_model.py && uv run ruff check src/fart/model/train_model.py tests/model/test_train_model.py`
+Run: `uv run ruff format src/fartt/model/train_model.py tests/model/test_train_model.py && uv run ruff check src/fartt/model/train_model.py tests/model/test_train_model.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -802,16 +802,16 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/model/train_model.py tests/model/test_train_model.py
+git add src/fartt/model/train_model.py tests/model/test_train_model.py
 git commit -m "feat: minibatch training, device placement, and versioned model saving in train()"
 ```
 
 ---
 
-## Task 6: `fart train --full` / `--artifacts-dir` / `--device` CLI options
+## Task 6: `fartt train --full` / `--artifacts-dir` / `--device` CLI options
 
 **Files:**
-- Modify: `src/fart/cli.py`
+- Modify: `src/fartt/cli.py`
 
 **Interfaces:**
 - Consumes: `train_model.train(data_dir: Path, market: str, interval: str, artifacts_dir: Path, months: Optional[int] = 6, config: Optional[NBeatsConfig] = None, device: Optional[torch.device] = None) -> Tuple[np.ndarray, np.ndarray]` (Task 5).
@@ -820,7 +820,7 @@ No automated CLI test is added — matching this file's existing convention (the
 
 - [ ] **Step 1: Add the new options**
 
-In `src/fart/cli.py`, add `Optional` to the `typing` import and `torch` as a new import:
+In `src/fartt/cli.py`, add `Optional` to the `typing` import and `torch` as a new import:
 
 ```python
 import sys
@@ -894,11 +894,11 @@ def train(
 Generate a fixture CSV large enough to clear the default `lookback=30` window requirement (200+ daily rows, per Task 5's row-count reasoning), then run the command against it with `--full`, `--artifacts-dir`, and `--device cpu`:
 
 ```bash
-mkdir -p /tmp/fart-cli-smoke
+mkdir -p /tmp/fartt-cli-smoke
 python3 - <<'PYEOF'
 from pathlib import Path
 
-path = Path("/tmp/fart-cli-smoke/BTC-EUR-1d.csv")
+path = Path("/tmp/fartt-cli-smoke/BTC-EUR-1d.csv")
 lines = ["Timestamp,Open,High,Low,Close,Volume\n"]
 base_price = 100.0
 for i in range(200):
@@ -908,18 +908,18 @@ for i in range(200):
 path.write_text("".join(lines))
 PYEOF
 
-uv run fart train /tmp/fart-cli-smoke BTC-EUR 1d --full --artifacts-dir /tmp/fart-cli-smoke/artifacts --device cpu
+uv run fartt train /tmp/fartt-cli-smoke BTC-EUR 1d --full --artifacts-dir /tmp/fartt-cli-smoke/artifacts --device cpu
 
-ls /tmp/fart-cli-smoke/artifacts
+ls /tmp/fartt-cli-smoke/artifacts
 
-rm -rf /tmp/fart-cli-smoke
+rm -rf /tmp/fartt-cli-smoke
 ```
 
-Expected: the command exits without a traceback; stderr shows 50 `Epoch N/50: loss=...` INFO lines, a `N-BEATS: ... test candles, device=cpu, magnitude mean=... confidence mean=...` line, and a `Saved model artifact to /tmp/fart-cli-smoke/artifacts/<timestamp>-BTC-EUR-1d-nbeats.pt` line; the `ls` shows exactly one `.pt` file matching that name (this exact command was run during this plan's research and verified to produce this output).
+Expected: the command exits without a traceback; stderr shows 50 `Epoch N/50: loss=...` INFO lines, a `N-BEATS: ... test candles, device=cpu, magnitude mean=... confidence mean=...` line, and a `Saved model artifact to /tmp/fartt-cli-smoke/artifacts/<timestamp>-BTC-EUR-1d-nbeats.pt` line; the `ls` shows exactly one `.pt` file matching that name (this exact command was run during this plan's research and verified to produce this output).
 
 - [ ] **Step 3: Static checks**
 
-Run: `uv run ruff format src/fart/cli.py && uv run ruff check src/fart/cli.py`
+Run: `uv run ruff format src/fartt/cli.py && uv run ruff check src/fartt/cli.py`
 Expected: `All checks passed!`
 
 Run: `uv run pyright`
@@ -928,8 +928,8 @@ Expected: `0 errors, 0 warnings, 0 informations`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/fart/cli.py
-git commit -m "feat: add --full, --artifacts-dir, --device options to fart train CLI command"
+git add src/fartt/cli.py
+git commit -m "feat: add --full, --artifacts-dir, --device options to fartt train CLI command"
 ```
 
 ---

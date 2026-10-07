@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from fart.model.train_model import init_dataloader, init_optimizer, train_model
+from fartt.model.train_model import init_dataloader, init_optimizer, train_model
 
 
 def test_init_dataloader_batches_and_converts_to_tensors() -> None:

@@ -6,7 +6,7 @@ from talib import MACD as calculate_macd
 from talib import RSI as calculate_rsi
 
 # Internal imports
-from fart.constants import (
+from fartt.constants import (
     BBANDS_LOWER,
     BBANDS_MIDDLE,
     BBANDS_UPPER,
@@ -18,7 +18,7 @@ from fart.constants import (
     MACD_SIGNAL,
     RSI,
 )
-from fart.features.technical_indicators_config import TechnicalIndicatorsConfig
+from fartt.features.technical_indicators_config import TechnicalIndicatorsConfig
 
 
 def calculate_technical_indicators(df: pl.DataFrame) -> pl.DataFrame:

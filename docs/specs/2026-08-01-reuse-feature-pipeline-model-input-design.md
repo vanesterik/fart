@@ -2,12 +2,12 @@
 
 **Date:** 2026-08-01
 **Status:** Approved
-**Source:** [GitHub issue #4](https://github.com/vanesterik/fart/issues/4), part of [Epic #1: N-BEATS Signal Model](https://github.com/vanesterik/fart/issues/1)
+**Source:** [GitHub issue #4](https://github.com/vanesterik/fartt/issues/4), part of [Epic #1: N-BEATS Signal Model](https://github.com/vanesterik/fartt/issues/1)
 **Related PRD:** `docs/product/part-a-signal-generation-refactor-prd.md` (Story 1)
 
 ## Problem
 
-`fart/model/train_model.py` and `fart/model/predict_model.py` are currently empty stub files left over from the refactor. Before any regression model (N-BEATS or transformer, per Part A) can be trained, the project needs a working path from cached candle data to a feature DataFrame the model can consume — without changing the existing, working `calculate_technical_indicators.py` pipeline.
+`fartt/model/train_model.py` and `fartt/model/predict_model.py` are currently empty stub files left over from the refactor. Before any regression model (N-BEATS or transformer, per Part A) can be trained, the project needs a working path from cached candle data to a feature DataFrame the model can consume — without changing the existing, working `calculate_technical_indicators.py` pipeline.
 
 This is deliberately the first, narrowest story under Epic #1: prove the feature pipeline can feed training, not build the model itself.
 
@@ -20,7 +20,7 @@ This is deliberately the first, narrowest story under Epic #1: prove the feature
 
 ## Architecture
 
-### `fart/utils.py` — shared filepath convention
+### `fartt/utils.py` — shared filepath convention
 
 Add:
 
@@ -30,7 +30,7 @@ def get_candle_filepath(settings: Settings) -> Path
 
 Extracts the `data_dir / f"{market}-{interval}.csv"` naming convention that currently lives only inside `Downloader._determine_filepath`. Both `Downloader` (writer) and the new training loader (reader) must agree on the exact same filename; centralizing it avoids the two drifting apart. `Downloader._determine_filepath` is updated to call this helper instead of duplicating the format string.
 
-### `fart/model/train_model.py` — currently empty stub
+### `fartt/model/train_model.py` — currently empty stub
 
 Add two functions:
 
@@ -48,7 +48,7 @@ def train(settings: Settings) -> None
 
 The CLI-facing entry point. Calls `prepare_training_data` and logs the resulting train/test shapes via loguru (matching the logging style already used in `Downloader._log_settings`). Intentionally does **not** fit a model — that's Epic #1 Story 2/3 (N-BEATS / transformer training), which will extend this function once the target architecture's input shape is known.
 
-### `fart/cli.py` — new `fart train` command
+### `fartt/cli.py` — new `fartt train` command
 
 Mirrors the existing `download` command's option pattern:
 
@@ -66,8 +66,8 @@ Builds a `Settings` instance via `update_settings` (same as `download`) and call
 ## Data Flow
 
 ```
-fart train
-  → get_candle_filepath(settings)               # fart/utils.py
+fartt train
+  → get_candle_filepath(settings)               # fartt/utils.py
   → pl.read_csv(filepath)                        # raises FileNotFoundError if missing
   → calculate_technical_indicators(df)            # UNMODIFIED existing pipeline
   → df.drop_nulls()                               # removes indicator warm-up rows
@@ -80,7 +80,7 @@ Indicator warm-up produces leading `null`/`NaN` rows (e.g. Bollinger Bands perio
 
 ## Error Handling
 
-The only new failure mode introduced by this story: the CSV for the requested market/interval doesn't exist yet (no `fart download` has been run). This raises `FileNotFoundError` with a message pointing the user at `fart download`.
+The only new failure mode introduced by this story: the CSV for the requested market/interval doesn't exist yet (no `fartt download` has been run). This raises `FileNotFoundError` with a message pointing the user at `fartt download`.
 
 `calculate_technical_indicators` and `train_test_split` are reused exactly as they exist today — no new error paths are introduced there, and no changes are made to either file.
 
@@ -89,7 +89,7 @@ The only new failure mode introduced by this story: the CSV for the requested ma
 - Unit test for `get_candle_filepath` — verifies the path convention against known `Settings` values.
 - Unit test for `prepare_training_data` — against a small synthetic Polars DataFrame with enough rows to survive indicator warm-up, asserting: no nulls survive into the splits, split shapes are internally consistent, and the pipeline runs end-to-end without raising.
 - Unit test for the `FileNotFoundError` path when the CSV is missing.
-- A CLI smoke test for `fart train` is left optional/out of scope — not required by the acceptance criteria.
+- A CLI smoke test for `fartt train` is left optional/out of scope — not required by the acceptance criteria.
 
 ## Out of Scope
 
@@ -97,7 +97,7 @@ The only new failure mode introduced by this story: the CSV for the requested ma
 - Dropping or selecting feature columns (e.g. `Timestamp`) from `X_train`/`X_test` — the pipeline is consumed as-is per the acceptance criteria ("no changes... consumes the DataFrame directly").
 - Any actual model fitting — `train()` logs shapes only; fitting a real model is Epic #1 Story 2/3.
 - Filling in `predict_model.py` — that's Epic #1 Story 5.
-- Fixing the pre-existing broken tests/imports noted in `CLAUDE.md` (`tests/model/test_train_test_split.py` imports `fart.common.constants`, which doesn't exist in the current layout) — unrelated to this story, not touched here.
+- Fixing the pre-existing broken tests/imports noted in `CLAUDE.md` (`tests/model/test_train_test_split.py` imports `fartt.common.constants`, which doesn't exist in the current layout) — unrelated to this story, not touched here.
 
 ## Open Questions
 

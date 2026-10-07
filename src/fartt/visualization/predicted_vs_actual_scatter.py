@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 
-from fart.constants import BLACK, IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN
+from fartt.constants import BLACK, IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN
 
 
 def predicted_vs_actual_scatter(y_test: np.ndarray, y_pred: np.ndarray) -> None:

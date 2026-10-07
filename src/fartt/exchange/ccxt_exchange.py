@@ -4,7 +4,7 @@ from typing import Any
 
 import ccxt
 
-from fart.exchange.candle import Candle
+from fartt.exchange.candle import Candle
 
 
 def _now_ms() -> int:

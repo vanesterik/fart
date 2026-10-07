@@ -3,7 +3,7 @@ from typing import Any
 import mplfinance as mpf
 import polars as pl
 
-from fart.constants import (
+from fartt.constants import (
     BBANDS,
     BBANDS_LOWER,
     BBANDS_MIDDLE,
@@ -23,7 +23,7 @@ from fart.constants import (
     TIMESTAMP,
     YELLOW_SEA,
 )
-from fart.features.technical_indicators_config import TechnicalIndicatorsConfig
+from fartt.features.technical_indicators_config import TechnicalIndicatorsConfig
 
 CONTOUR_LINE_ALPHA = 0.3
 

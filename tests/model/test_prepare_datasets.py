@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from fart.constants import CLOSE, MAGNITUDE, TIMESTAMP
-from fart.model.prepare_datasets import prepare_datasets, train_test_split
+from fartt.constants import CLOSE, MAGNITUDE, TIMESTAMP
+from fartt.model.prepare_datasets import prepare_datasets, train_test_split
 
 CSV_HEADER = f"{TIMESTAMP},{CLOSE}\n"
 

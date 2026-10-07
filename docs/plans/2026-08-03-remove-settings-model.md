@@ -4,7 +4,7 @@
 
 **Goal:** Remove the `Settings` pydantic model, its supporting `update_settings` helper, and the `Interval` enum, and have `Downloader` accept its configuration (`data_dir`, `market`, `interval`, `api_key`, `api_secret`) as plain constructor arguments instead of a `Settings` object — with `interval` as a plain `str` rather than an enum.
 
-**Architecture:** `Downloader.__init__` currently takes a single `Settings` instance and reads `self._settings.<field>` throughout. It will instead take five explicit parameters and store them as individual `self._<field>` attributes. `fart/cli.py`'s `download` command currently builds a `Settings` via `update_settings` and passes it to `Downloader`; it will instead construct `Downloader` directly from its own CLI arguments (mirroring how the sibling `train` command already calls `train_model.train(data_dir=Path(data_dir), market=market, interval=interval)` with plain arguments — see `src/fart/cli.py:83`). `Settings` and `Interval` are both deleted from `fart/settings.py`; the unrelated `Candle` type alias defined in the same file is kept as-is since it is not part of the `Settings` model and is still consumed by `Downloader`. Everywhere `Downloader` currently type-hints or defaults against `Interval` (the constructor and the two timestamp-math helpers `_calculate_timestamp_list`/`_calculate_timestamp`) switches to plain `str`; behavior is unchanged since `Interval` was a `(str, Enum)` and every use of it (`.endswith(...)`, slicing, `.value`) already worked identically on a plain string. `update_settings` is deleted from `fart/utils.py`; `get_candle_filepath` and `get_last_modified_data_file` in that file are untouched.
+**Architecture:** `Downloader.__init__` currently takes a single `Settings` instance and reads `self._settings.<field>` throughout. It will instead take five explicit parameters and store them as individual `self._<field>` attributes. `fartt/cli.py`'s `download` command currently builds a `Settings` via `update_settings` and passes it to `Downloader`; it will instead construct `Downloader` directly from its own CLI arguments (mirroring how the sibling `train` command already calls `train_model.train(data_dir=Path(data_dir), market=market, interval=interval)` with plain arguments — see `src/fartt/cli.py:83`). `Settings` and `Interval` are both deleted from `fartt/settings.py`; the unrelated `Candle` type alias defined in the same file is kept as-is since it is not part of the `Settings` model and is still consumed by `Downloader`. Everywhere `Downloader` currently type-hints or defaults against `Interval` (the constructor and the two timestamp-math helpers `_calculate_timestamp_list`/`_calculate_timestamp`) switches to plain `str`; behavior is unchanged since `Interval` was a `(str, Enum)` and every use of it (`.endswith(...)`, slicing, `.value`) already worked identically on a plain string. `update_settings` is deleted from `fartt/utils.py`; `get_candle_filepath` and `get_last_modified_data_file` in that file are untouched.
 
 **Tech Stack:** Python 3.11+, pydantic v2 (staying in the codebase for other models — only the `Settings` model itself goes), Typer CLI, `python_bitvavo_api`, pytest, `unittest.mock` (stdlib) for mocking the Bitvavo client in tests.
 
@@ -12,16 +12,16 @@
 
 - Only remove `Settings`, `update_settings`, and `Interval`. Do not touch `Candle`, `get_candle_filepath`, or `get_last_modified_data_file` — they are unrelated to the `Settings` model and were not asked for.
 - `Downloader`'s new constructor parameter order must be exactly: `data_dir, market, interval, api_key, api_secret` (per the request), with `interval: str` (not an enum).
-- Match the existing sibling command style in `fart/cli.py`: the `download` command must build and pass raw arguments the same way the `train` command already does (`Path(data_dir)`, plain `market` and `interval` strings passed straight through — see rationale in Task 3).
+- Match the existing sibling command style in `fartt/cli.py`: the `download` command must build and pass raw arguments the same way the `train` command already does (`Path(data_dir)`, plain `market` and `interval` strings passed straight through — see rationale in Task 3).
 - No new third-party dependencies. Use stdlib `unittest.mock` for the new downloader tests.
 - Pre-commit (`lefthook`) runs `ruff format`, `ruff check --fix`, and `pyright` on every commit — code must pass all three before committing (pyright is strict mode, `src/` only, per `pyproject.toml`'s `[tool.pyright]`).
-- Do not fix the pre-existing broken imports in `tests/utils/test_converters.py`, `tests/features/test_trade_strategy.py`, `src/fart/core/broker.py`, `src/fart/core/dashboard.py`, `src/fart/model/predict_model.py`, `src/fart/model/train_model.py` (train stub — not `prepare_training_data`), or `src/fart/visualization/*` — they are unrelated pre-existing breakage from an earlier refactor (documented in `CLAUDE.md`) and out of scope here.
+- Do not fix the pre-existing broken imports in `tests/utils/test_converters.py`, `tests/features/test_trade_strategy.py`, `src/fartt/core/broker.py`, `src/fartt/core/dashboard.py`, `src/fartt/model/predict_model.py`, `src/fartt/model/train_model.py` (train stub — not `prepare_training_data`), or `src/fartt/visualization/*` — they are unrelated pre-existing breakage from an earlier refactor (documented in `CLAUDE.md`) and out of scope here.
 
 ---
 
 ## Current state (read this before starting)
 
-`src/fart/settings.py` (32 lines):
+`src/fartt/settings.py` (32 lines):
 ```python
 from enum import Enum
 from pathlib import Path
@@ -51,14 +51,14 @@ class Interval(str, Enum):
 class Settings(BaseModel):
     api_key: str | None = None
     api_secret: str | None = None
-    data_dir: Path = Path.home() / ".cache/fart"
+    data_dir: Path = Path.home() / ".cache/fartt"
     market: str = "BTC-EUR"
     interval: Interval = Interval.ONE_DAY
 ```
 
-`src/fart/downloader.py` (169 lines) — full current content was read; the parts that change are `__init__`, `_validate_settings`, `_determine_filepath`, `_log_settings`, every `self._settings.<x>` reference inside `download()`, and the `interval: Interval` type hints/defaults on `_calculate_timestamp_list` and `_calculate_timestamp` (these two only change their type hint from `Interval` to `str` and their default from `Interval.ONE_DAY` to `"1d"` — their bodies already work unchanged on a plain string). `_convert_timestamp`, `_process_candles`, and the CSV helpers (`_load_cached_candle_data`, `_save_candle_data`, `_determine_start_timestamp`) reference neither `self._settings` nor `Interval` and are fully untouched.
+`src/fartt/downloader.py` (169 lines) — full current content was read; the parts that change are `__init__`, `_validate_settings`, `_determine_filepath`, `_log_settings`, every `self._settings.<x>` reference inside `download()`, and the `interval: Interval` type hints/defaults on `_calculate_timestamp_list` and `_calculate_timestamp` (these two only change their type hint from `Interval` to `str` and their default from `Interval.ONE_DAY` to `"1d"` — their bodies already work unchanged on a plain string). `_convert_timestamp`, `_process_candles`, and the CSV helpers (`_load_cached_candle_data`, `_save_candle_data`, `_determine_start_timestamp`) reference neither `self._settings` nor `Interval` and are fully untouched.
 
-`src/fart/cli.py`'s `download` command (`src/fart/cli.py:25-61`):
+`src/fartt/cli.py`'s `download` command (`src/fartt/cli.py:25-61`):
 ```python
 @app.command()
 def download(
@@ -99,7 +99,7 @@ def download(
     downloader.download()
 ```
 
-`src/fart/utils.py` (46 lines) — `update_settings` (lines 7-20) is the only function that references `Settings`; `get_candle_filepath` and `get_last_modified_data_file` do not and stay.
+`src/fartt/utils.py` (46 lines) — `update_settings` (lines 7-20) is the only function that references `Settings`; `get_candle_filepath` and `get_last_modified_data_file` do not and stay.
 
 No existing test currently imports `Settings`, `update_settings`, or constructs a `Downloader` — `grep -rln "update_settings" tests/` returns nothing, and there is no `tests/test_downloader.py` yet.
 
@@ -108,14 +108,14 @@ No existing test currently imports `Settings`, `update_settings`, or constructs 
 ### Task 1: Give `Downloader` an explicit-arguments constructor
 
 **Files:**
-- Modify: `src/fart/downloader.py`
+- Modify: `src/fartt/downloader.py`
 - Create: `tests/test_downloader.py`
 
 **Interfaces:**
 - Produces: `Downloader.__init__(self, data_dir: Path, market: str, interval: str, api_key: str | None, api_secret: str | None) -> None`, `Downloader.download(self) -> None` (signature unchanged), `Downloader._filepath: Path` (unchanged attribute name, still set in `__init__`).
-- Consumes: only `Candle` from `fart.settings` after this task (unchanged import shape). `Settings` and `Interval` are no longer imported from there at all — both imports are removed in this task since neither is used in this file anymore, even though neither class/enum is deleted from `settings.py` until Task 2.
+- Consumes: only `Candle` from `fartt.settings` after this task (unchanged import shape). `Settings` and `Interval` are no longer imported from there at all — both imports are removed in this task since neither is used in this file anymore, even though neither class/enum is deleted from `settings.py` until Task 2.
 
-This task changes `Downloader`'s call signature and internals, including switching every `Interval`-typed parameter to plain `str`. `Settings` and `Interval` themselves are deleted from `fart/settings.py` in Task 2 — that's fine, because after this task `downloader.py` no longer imports or references either name at all, so the two tasks don't conflict regardless of order. Task 3 (updating `cli.py`) depends on this task being done first, since `cli.py` needs the new constructor shape to call it.
+This task changes `Downloader`'s call signature and internals, including switching every `Interval`-typed parameter to plain `str`. `Settings` and `Interval` themselves are deleted from `fartt/settings.py` in Task 2 — that's fine, because after this task `downloader.py` no longer imports or references either name at all, so the two tasks don't conflict regardless of order. Task 3 (updating `cli.py`) depends on this task being done first, since `cli.py` needs the new constructor shape to call it.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -128,7 +128,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from loguru import logger
 
-from fart.downloader import Downloader
+from fartt.downloader import Downloader
 
 
 def _make_downloader(
@@ -149,7 +149,7 @@ def _make_downloader(
     )
 
 
-@patch("fart.downloader.Bitvavo")
+@patch("fartt.downloader.Bitvavo")
 def test_downloader_stores_configuration_and_computes_filepath(
     mock_bitvavo: MagicMock, tmp_path: Path
 ) -> None:
@@ -159,7 +159,7 @@ def test_downloader_stores_configuration_and_computes_filepath(
     assert tmp_path.exists()
 
 
-@patch("fart.downloader.Bitvavo")
+@patch("fartt.downloader.Bitvavo")
 def test_downloader_passes_api_credentials_to_client(
     mock_bitvavo: MagicMock, tmp_path: Path
 ) -> None:
@@ -170,7 +170,7 @@ def test_downloader_passes_api_credentials_to_client(
     )
 
 
-@patch("fart.downloader.Bitvavo")
+@patch("fartt.downloader.Bitvavo")
 def test_downloader_unknown_market_raises(
     mock_bitvavo: MagicMock, tmp_path: Path
 ) -> None:
@@ -180,7 +180,7 @@ def test_downloader_unknown_market_raises(
         )
 
 
-@patch("fart.downloader.Bitvavo")
+@patch("fartt.downloader.Bitvavo")
 def test_downloader_logs_configuration_without_leaking_secrets(
     mock_bitvavo: MagicMock, tmp_path: Path
 ) -> None:
@@ -205,13 +205,13 @@ Expected: FAIL — `TypeError: Downloader.__init__() got an unexpected keyword a
 
 - [ ] **Step 3: Rewrite `Downloader.__init__` and its helper methods**
 
-In `src/fart/downloader.py`, replace the import line and the whole class header/`__init__`/`_validate_settings`/`_determine_filepath`/`_log_settings` block:
+In `src/fartt/downloader.py`, replace the import line and the whole class header/`__init__`/`_validate_settings`/`_determine_filepath`/`_log_settings` block:
 
 Replace:
 ```python
-from fart.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
-from fart.settings import Candle, Interval, Settings
-from fart.utils import get_candle_filepath
+from fartt.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
+from fartt.settings import Candle, Interval, Settings
+from fartt.utils import get_candle_filepath
 
 
 class Downloader:
@@ -230,9 +230,9 @@ class Downloader:
 
 With:
 ```python
-from fart.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
-from fart.settings import Candle
-from fart.utils import get_candle_filepath
+from fartt.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
+from fartt.settings import Candle
+from fartt.utils import get_candle_filepath
 
 
 class Downloader:
@@ -284,7 +284,7 @@ Replace:
         settings_["interval"] = self._settings.interval.value
         settings_["filepath"] = str(self._filepath)
         table = tabulate(settings_.items())
-        logger.info(f"\n\nF.A.R.T. Downloader\n\n{table}\n")
+        logger.info(f"\n\nFartt Downloader\n\n{table}\n")
 ```
 
 With:
@@ -311,7 +311,7 @@ With:
             "filepath": str(self._filepath),
         }
         table = tabulate(configuration.items())
-        logger.info(f"\n\nF.A.R.T. Downloader\n\n{table}\n")
+        logger.info(f"\n\nFartt Downloader\n\n{table}\n")
 ```
 
 Then, inside `download()`, replace the three remaining `self._settings.<x>` reads:
@@ -393,16 +393,16 @@ Expected: PASS (4 passed).
 
 - [ ] **Step 5: Type-check and lint**
 
-Run: `uv run pyright src/fart/downloader.py`
+Run: `uv run pyright src/fartt/downloader.py`
 Expected: 0 errors.
 
-Run: `uv run ruff check src/fart/downloader.py tests/test_downloader.py --fix && uv run ruff format src/fart/downloader.py tests/test_downloader.py`
+Run: `uv run ruff check src/fartt/downloader.py tests/test_downloader.py --fix && uv run ruff format src/fartt/downloader.py tests/test_downloader.py`
 Expected: clean, no remaining issues.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/fart/downloader.py tests/test_downloader.py
+git add src/fartt/downloader.py tests/test_downloader.py
 git commit -m "refactor: make Downloader take explicit config args instead of Settings"
 ```
 
@@ -411,16 +411,16 @@ git commit -m "refactor: make Downloader take explicit config args instead of Se
 ### Task 2: Delete `Settings`, `update_settings`, and `Interval`
 
 **Files:**
-- Modify: `src/fart/settings.py`
-- Modify: `src/fart/utils.py`
+- Modify: `src/fartt/settings.py`
+- Modify: `src/fartt/utils.py`
 
 **Interfaces:**
 - Consumes: nothing new — this task only deletes code that Task 1 already stopped depending on (`downloader.py` no longer imports `Settings` or `Interval` after Task 1).
-- Produces: `fart/settings.py` now only exports `Candle` (unchanged shape). `fart/utils.py` now only exports `get_candle_filepath` and `get_last_modified_data_file` (unchanged shapes/signatures).
+- Produces: `fartt/settings.py` now only exports `Candle` (unchanged shape). `fartt/utils.py` now only exports `get_candle_filepath` and `get_last_modified_data_file` (unchanged shapes/signatures).
 
 This task has no behavior to test directly (pure deletion of otherwise-unused code) — verification is that the full suite still collects and passes, and pyright/ruff stay clean, which Step 3 covers. Do this task after Task 1: Task 1 removes `downloader.py`'s only remaining production dependency on `Settings` and `Interval`, so by the time this task runs, the only references left to delete are the definitions themselves and `cli.py`'s usage (handled in Task 3 — order between Task 2 and Task 3 doesn't matter functionally, but doing Task 2 first means Task 3 starts from a codebase where the old `Settings`-based CLI code is already a dangling reference, making the diff in Task 3 unambiguous).
 
-- [ ] **Step 1: Remove the `Settings` class and `Interval` enum from `src/fart/settings.py`**
+- [ ] **Step 1: Remove the `Settings` class and `Interval` enum from `src/fartt/settings.py`**
 
 Replace the full file content:
 
@@ -432,7 +432,7 @@ Candle = Tuple[int, float, float, float, float, float]
 
 (`enum.Enum`, `pathlib.Path`, and `pydantic.BaseModel` imports are all dropped along with `Settings` and `Interval` since nothing else in the file uses them — only `Candle` remains, and it only needs `Tuple`.)
 
-- [ ] **Step 2: Remove `update_settings` from `src/fart/utils.py`**
+- [ ] **Step 2: Remove `update_settings` from `src/fartt/utils.py`**
 
 Replace the full file content:
 
@@ -470,7 +470,7 @@ def get_last_modified_data_file(data_dir: str) -> Path:
 - [ ] **Step 3: Verify nothing else references the deleted names**
 
 Run: `grep -rn "Settings\|update_settings\|Interval" --include="*.py" src/ tests/`
-Expected: no output (Task 3 hasn't touched `cli.py` yet, so if this still shows `src/fart/cli.py` matches, that's expected at this point in the plan and gets resolved in Task 3 — this check is here to confirm `settings.py` and `utils.py` themselves, and `downloader.py`, are clean).
+Expected: no output (Task 3 hasn't touched `cli.py` yet, so if this still shows `src/fartt/cli.py` matches, that's expected at this point in the plan and gets resolved in Task 3 — this check is here to confirm `settings.py` and `utils.py` themselves, and `downloader.py`, are clean).
 
 Run: `uv run pytest tests/utils -v`
 Expected: PASS (existing `test_get_candle_filepath.py` and `test_get_last_modified_data_file.py` are unaffected; `test_converters.py` was already broken before this plan per `CLAUDE.md` and is out of scope).
@@ -478,37 +478,37 @@ Expected: PASS (existing `test_get_candle_filepath.py` and `test_get_last_modifi
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/fart/settings.py src/fart/utils.py
+git add src/fartt/settings.py src/fartt/utils.py
 git commit -m "refactor: remove Settings model, update_settings helper, and Interval enum"
 ```
 
 ---
 
-### Task 3: Update `fart/cli.py`'s `download` command to build `Downloader` directly
+### Task 3: Update `fartt/cli.py`'s `download` command to build `Downloader` directly
 
 **Files:**
-- Modify: `src/fart/cli.py`
+- Modify: `src/fartt/cli.py`
 
 **Interfaces:**
 - Consumes: `Downloader.__init__(self, data_dir: Path, market: str, interval: str, api_key: str | None, api_secret: str | None)` from Task 1.
 - Produces: no new public interface — `download` remains a Typer command with the same CLI-visible argument names/help text/defaults.
 
-The `train` command already shows the target pattern at `src/fart/cli.py:65-83`: plain `Annotated[str, typer.Argument(...)]` parameters, no `Optional`, converted straight into a `Path(data_dir)` call. Bring `download` in line with it instead of leaving it as the `Optional[str]` + dict-of-overrides style tied to `Settings`.
+The `train` command already shows the target pattern at `src/fartt/cli.py:65-83`: plain `Annotated[str, typer.Argument(...)]` parameters, no `Optional`, converted straight into a `Path(data_dir)` call. Bring `download` in line with it instead of leaving it as the `Optional[str]` + dict-of-overrides style tied to `Settings`.
 
 - [ ] **Step 1: Rewrite the `download` command and its imports**
 
 Replace the import block:
 ```python
-from fart.downloader import Downloader
-from fart.model import train_model
-from fart.settings import Settings
-from fart.utils import update_settings
+from fartt.downloader import Downloader
+from fartt.model import train_model
+from fartt.settings import Settings
+from fartt.utils import update_settings
 ```
 
 With:
 ```python
-from fart.downloader import Downloader
-from fart.model import train_model
+from fartt.downloader import Downloader
+from fartt.model import train_model
 ```
 
 Replace the `download` command body:
@@ -599,26 +599,26 @@ from typing import Annotated
 
 - [ ] **Step 2: Type-check and lint**
 
-Run: `uv run pyright src/fart/cli.py`
+Run: `uv run pyright src/fartt/cli.py`
 Expected: 0 errors.
 
-Run: `uv run ruff check src/fart/cli.py --fix && uv run ruff format src/fart/cli.py`
+Run: `uv run ruff check src/fartt/cli.py --fix && uv run ruff format src/fartt/cli.py`
 Expected: clean, no remaining issues.
 
 - [ ] **Step 3: Manually verify the CLI still works end-to-end**
 
-Run: `uv run fart download --help`
+Run: `uv run fartt download --help`
 Expected: help text lists `data_dir`, `market`, `interval` positional arguments with the same help strings as before (unchanged from the user's point of view).
 
-Run: `uv run fart download /tmp/fart-plan-check BTC-EUR 1d`
-Expected: either downloads/updates `/tmp/fart-plan-check/BTC-EUR-1d.csv` if `BITVAVO_API_KEY`/`BITVAVO_API_SECRET` are set in the environment/`.env`, or fails with an `Bitvavo` authentication/network error if they are not — either way, it must fail *after* constructing `Downloader` successfully (i.e. not with a `TypeError` about arguments or an `ImportError`/`AttributeError` about `Settings`). If it fails before that point, something in this task's rewrite is wrong — go back and check the constructor call matches Task 1's signature.
+Run: `uv run fartt download /tmp/fartt-plan-check BTC-EUR 1d`
+Expected: either downloads/updates `/tmp/fartt-plan-check/BTC-EUR-1d.csv` if `BITVAVO_API_KEY`/`BITVAVO_API_SECRET` are set in the environment/`.env`, or fails with an `Bitvavo` authentication/network error if they are not — either way, it must fail *after* constructing `Downloader` successfully (i.e. not with a `TypeError` about arguments or an `ImportError`/`AttributeError` about `Settings`). If it fails before that point, something in this task's rewrite is wrong — go back and check the constructor call matches Task 1's signature.
 
-Clean up: `rm -rf /tmp/fart-plan-check`
+Clean up: `rm -rf /tmp/fartt-plan-check`
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/fart/cli.py
+git add src/fartt/cli.py
 git commit -m "refactor: build Downloader from CLI args directly, drop Settings usage"
 ```
 
@@ -653,8 +653,8 @@ Expected: no output.
 ## Self-review
 
 **Spec coverage:**
-- "Remove all implementations of the Settings model object defined in src/fart/settings.py" → Task 2, Step 1.
-- "adjust src/fart/downloader.py to accept all arguments (data_dir, market, interval, api_key, api_secret) instead of a Settings object" → Task 1, exact parameter order matches.
+- "Remove all implementations of the Settings model object defined in src/fartt/settings.py" → Task 2, Step 1.
+- "adjust src/fartt/downloader.py to accept all arguments (data_dir, market, interval, api_key, api_secret) instead of a Settings object" → Task 1, exact parameter order matches.
 - "Remove all Settings related functions and implementations" → Task 2 (`update_settings` in `utils.py`), Task 3 (`cli.py`'s `Settings(...)`/`update_settings(...)` call site), Task 4 Step 4 confirms via grep.
 - "I notice you want to maintain the Interval class ... remove that as well and its corresponding implementations" → Task 1 switches `Downloader`'s constructor and its two timestamp-math helpers from `Interval` to plain `str`; Task 2, Step 1 deletes the `Interval` enum itself from `settings.py`; Task 3 drops the now-unneeded `Interval` import and `Interval(interval)` conversion from `cli.py`; Task 4 Step 4 confirms via grep.
 

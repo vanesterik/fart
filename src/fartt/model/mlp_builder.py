@@ -1,7 +1,7 @@
 from torch import nn
 
-from fart.model.blocks import linear_block
-from fart.model.mlp_config import MLPConfig
+from fartt.model.blocks import linear_block
+from fartt.model.mlp_config import MLPConfig
 
 
 class MLPBuilder:

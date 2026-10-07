@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from fart.model.device import get_device
+from fartt.model.device import get_device
 
 
 @patch("torch.backends.mps.is_available", return_value=True)

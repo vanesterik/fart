@@ -1,6 +1,6 @@
 import polars as pl
 
-from fart.constants import CLOSE, MAGNITUDE
+from fartt.constants import CLOSE, MAGNITUDE
 
 
 def calculate_magnitude(df: pl.DataFrame) -> pl.DataFrame:

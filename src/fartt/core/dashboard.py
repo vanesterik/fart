@@ -9,7 +9,7 @@ from rich.panel import Panel as BasePanel
 from rich.table import Table as BaseTable
 from rich.text import Text
 
-from fart.constants import (
+from fartt.constants import (
     BALANCE,
     CHANGE,
     DOVE_GREY,

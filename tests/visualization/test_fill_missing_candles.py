@@ -1,7 +1,7 @@
 import polars as pl
 
-from fart.constants import CLOSE, TIMESTAMP
-from fart.visualization.missing_value_heatmap import fill_missing_candles
+from fartt.constants import CLOSE, TIMESTAMP
+from fartt.visualization.missing_value_heatmap import fill_missing_candles
 
 
 def test_fill_missing_candles_inserts_null_row_for_gap() -> None:

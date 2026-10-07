@@ -8,8 +8,8 @@ from python_bitvavo_api.bitvavo import Bitvavo
 from tabulate import tabulate
 from tqdm import tqdm
 
-from fart.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
-from fart.utils import get_data_filepath
+from fartt.constants import CLOSE, HIGH, LOW, OPEN, TIMESTAMP, VOLUME
+from fartt.utils import get_data_filepath
 
 Candle = Tuple[int, float, float, float, float, float]
 
@@ -78,7 +78,7 @@ class Downloader:
             "filepath": str(self._filepath),
         }
         table = tabulate(configuration.items())
-        logger.info(f"\n\nF.A.R.T. Downloader\n\n{table}\n")
+        logger.info(f"\n\nFartt Downloader\n\n{table}\n")
 
     def _load_cached_candle_data(self, filepath: Path) -> List[Candle]:
         if not filepath.exists():
