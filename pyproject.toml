@@ -5,7 +5,7 @@ description = "Financial Analysis Real Time Trading"
 authors = [{ name = "Koen van Esterik", email = "koen@vanesterik.dev" }]
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 
 
 dependencies = [
