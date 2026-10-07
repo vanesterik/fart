@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from fart.constants import BLACK, HONOLULU_BLUE, IMPERIAL_RED_MAIN
+from fartt.constants import BLACK, HONOLULU_BLUE, IMPERIAL_RED_MAIN
 
 
 def evaluation_line_chart(

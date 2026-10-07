@@ -1,7 +1,7 @@
 import polars as pl
 
-from fart.constants import CLOSE, MAGNITUDE
-from fart.features.calculate_magnitude import calculate_magnitude
+from fartt.constants import CLOSE, MAGNITUDE
+from fartt.features.calculate_magnitude import calculate_magnitude
 
 
 def test_calculate_magnitude_is_signed_percent_change() -> None:

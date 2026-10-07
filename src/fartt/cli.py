@@ -7,7 +7,7 @@ import typer
 from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 
-from fart.downloader import Downloader
+from fartt.downloader import Downloader
 
 app = typer.Typer(no_args_is_help=True)
 

@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 
-from fart.constants import DATETIME, MAGNITUDE
-from fart.visualization.diverging_bar_chart import plot_diverging_bars
+from fartt.constants import DATETIME, MAGNITUDE
+from fartt.visualization.diverging_bar_chart import plot_diverging_bars
 
 
 def plot_magnitude(

@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-04
 **Status:** Approved
-**Source:** [GitHub issue #6](https://github.com/vanesterik/fart/issues/6), part of [Epic #1: N-BEATS Signal Model](https://github.com/vanesterik/fart/issues/1)
+**Source:** [GitHub issue #6](https://github.com/vanesterik/fartt/issues/6), part of [Epic #1: N-BEATS Signal Model](https://github.com/vanesterik/fartt/issues/1)
 **Related PRD:** `docs/product/part-a-signal-generation-refactor-prd.md` (Story 2)
 **Builds on:** `docs/specs/2026-08-03-train-nbeats-quick-prototype-design.md`
 
@@ -10,7 +10,7 @@
 
 The quick-prototype story validated that N-BEATS trains and produces a magnitude/confidence prediction on a small recent slice (`--months 6`, ~150 rows after warm-up). `train_model.train()` only proved this end-to-end on that scale: its training loop is full-batch (no `DataLoader`), and it never persists the fitted model — it just logs summary stats and returns arrays.
 
-Issue #6 needs the same pipeline to work against the *complete* cached history — which can be small (`BTC-EUR-1d.csv`, ~2.7k rows) or very large (`BTC-EUR-1m.csv`, 3.18M rows today) — and to save a trained model artifact that a future walk-forward backtest harness ([issue #9](https://github.com/vanesterik/fart/issues/9), not yet built) can load. Because #9 doesn't exist yet, "loadable by the backtest harness" means establishing a stable, self-describing save/load contract now, not integrating with a concrete harness.
+Issue #6 needs the same pipeline to work against the *complete* cached history — which can be small (`BTC-EUR-1d.csv`, ~2.7k rows) or very large (`BTC-EUR-1m.csv`, 3.18M rows today) — and to save a trained model artifact that a future walk-forward backtest harness ([issue #9](https://github.com/vanesterik/fartt/issues/9), not yet built) can load. Because #9 doesn't exist yet, "loadable by the backtest harness" means establishing a stable, self-describing save/load contract now, not integrating with a concrete harness.
 
 ## Acceptance Criteria (from issue #6)
 
@@ -30,7 +30,7 @@ Per-epoch average loss is now logged via loguru. This wasn't useful at quick-pro
 
 The pinned `torch` dependency (`pyproject.toml`, `pytorch-cpu` index) already resolves to a plain macOS arm64 wheel with no `+cpu` suffix (confirmed in `uv.lock`) — unlike Linux/Windows, macOS torch wheels bundle MPS support by default, so **no dependency changes are needed**.
 
-New `fart/model/device.py`:
+New `fartt/model/device.py`:
 
 ```python
 def get_device() -> torch.device:
@@ -47,7 +47,7 @@ CLI gets `--device` (`Optional[str]`, unset = auto-detect), passed through as `t
 
 ### Versioning
 
-Filenames get a UTC datetime prefix instead of overwriting on every run. New `fart/utils.py` functions, mirroring the existing `get_candle_filepath`/`get_last_modified_data_file` style:
+Filenames get a UTC datetime prefix instead of overwriting on every run. New `fartt/utils.py` functions, mirroring the existing `get_candle_filepath`/`get_last_modified_data_file` style:
 
 ```python
 def get_model_filepath(
@@ -67,7 +67,7 @@ This lookup helper exists so a future consumer (the backtest harness, #9) doesn'
 
 ### Persistence
 
-New `fart/model/nbeats_persistence.py`:
+New `fartt/model/nbeats_persistence.py`:
 
 ```python
 def save_model(model: NBeatsNet, config: NBeatsConfig, path: Path) -> None:
@@ -98,7 +98,7 @@ def train(
 
 ### CLI
 
-`fart train` gains three options, following the existing `Annotated[..., typer.Option(...)]` pattern:
+`fartt train` gains three options, following the existing `Annotated[..., typer.Option(...)]` pattern:
 
 ```python
 months: Annotated[int, typer.Option(help="... Ignored if --full is set.")] = 6,
@@ -112,7 +112,7 @@ Passed through as `months=None if full else months`, `artifacts_dir=Path(artifac
 ## Data Flow
 
 ```
-fart train --full
+fartt train --full
   → train_model.train(..., months=None, artifacts_dir=Path("artifacts"), device=None)
       → prepare_training_data(..., months=None)        # UNCHANGED, already supports None
       → build_return_windows(...)                       # UNCHANGED

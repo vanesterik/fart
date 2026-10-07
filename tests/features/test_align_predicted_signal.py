@@ -2,8 +2,8 @@ import math
 
 import pytest
 
-from fart.features.align_predicted_signal import align_predicted_signal
-from fart.features.calculate_trade_returns import calculate_trade_returns
+from fartt.features.align_predicted_signal import align_predicted_signal
+from fartt.features.calculate_trade_returns import calculate_trade_returns
 
 
 def test_align_predicted_signal_shifts_back_by_one() -> None:

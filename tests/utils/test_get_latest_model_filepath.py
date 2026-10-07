@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from fart.utils import get_latest_model_filepath
+from fartt.utils import get_latest_model_filepath
 
 
 def test_get_latest_model_filepath_picks_max_by_filename() -> None:

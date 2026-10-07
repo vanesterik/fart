@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from fart.visualization.plot_styles import apply_plot_styles
+from fartt.visualization.plot_styles import apply_plot_styles
 
 
 def test_apply_plot_styles_applies_tradingview_rcparams() -> None:

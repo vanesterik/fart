@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from loguru import logger
 
-from fart.downloader import Downloader
+from fartt.downloader import Downloader
 
 
 def _make_downloader(
@@ -26,7 +26,7 @@ def _make_downloader(
     )
 
 
-@patch("fart.downloader.Bitvavo")
+@patch("fartt.downloader.Bitvavo")
 def test_downloader_stores_configuration_and_computes_filepath(
     mock_bitvavo: MagicMock, tmp_path: Path
 ) -> None:
@@ -36,7 +36,7 @@ def test_downloader_stores_configuration_and_computes_filepath(
     assert tmp_path.exists()
 
 
-@patch("fart.downloader.Bitvavo")
+@patch("fartt.downloader.Bitvavo")
 def test_downloader_passes_api_credentials_to_client(
     mock_bitvavo: MagicMock, tmp_path: Path
 ) -> None:
@@ -47,7 +47,7 @@ def test_downloader_passes_api_credentials_to_client(
     )
 
 
-@patch("fart.downloader.Bitvavo")
+@patch("fartt.downloader.Bitvavo")
 def test_downloader_unknown_market_raises(
     mock_bitvavo: MagicMock, tmp_path: Path
 ) -> None:
@@ -66,7 +66,7 @@ def test_downloader_unknown_market_raises(
         ("1d", 1_000_000, 1_000_000 + 86_400_000),
     ],
 )
-@patch("fart.downloader.Bitvavo")
+@patch("fartt.downloader.Bitvavo")
 def test_downloader_resumes_one_interval_past_last_cached_candle(
     mock_bitvavo: MagicMock,
     tmp_path: Path,
@@ -89,7 +89,7 @@ def test_downloader_resumes_one_interval_past_last_cached_candle(
     assert start_timestamp == expected_start_timestamp
 
 
-@patch("fart.downloader.Bitvavo")
+@patch("fartt.downloader.Bitvavo")
 def test_downloader_resumes_from_launch_timestamp_without_cached_data(
     mock_bitvavo: MagicMock, tmp_path: Path
 ) -> None:
@@ -98,7 +98,7 @@ def test_downloader_resumes_from_launch_timestamp_without_cached_data(
     assert downloader._determine_start_timestamp([]) == 1552089600000
 
 
-@patch("fart.downloader.Bitvavo")
+@patch("fartt.downloader.Bitvavo")
 def test_downloader_logs_configuration_without_leaking_secrets(
     mock_bitvavo: MagicMock, tmp_path: Path
 ) -> None:

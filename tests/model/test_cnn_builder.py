@@ -1,9 +1,9 @@
 import torch
 from torch import nn
 
-from fart.model.builder import ModelBuilder
-from fart.model.cnn_builder import CNNBuilder
-from fart.model.cnn_config import CNNConfig
+from fartt.model.builder import ModelBuilder
+from fartt.model.cnn_builder import CNNBuilder
+from fartt.model.cnn_config import CNNConfig
 
 
 def test_cnn_builder_layer_count_and_output_shape() -> None:

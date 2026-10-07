@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from fart.model.blocks import conv_block, linear_block
+from fartt.model.blocks import conv_block, linear_block
 
 
 def test_linear_block_layer_types_and_dims() -> None:

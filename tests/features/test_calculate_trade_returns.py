@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from fart.features.calculate_trade_returns import calculate_trade_returns
+from fartt.features.calculate_trade_returns import calculate_trade_returns
 
 
 def test_calculate_trade_returns_opens_and_closes_a_trade() -> None:

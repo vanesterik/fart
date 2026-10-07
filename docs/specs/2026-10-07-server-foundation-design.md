@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-07
 **Status:** Approved
-**Source:** [Epic #44: Server Foundation](https://github.com/vanesterik/fart/issues/44), stories [#50](https://github.com/vanesterik/fart/issues/50), [#51](https://github.com/vanesterik/fart/issues/51), [#52](https://github.com/vanesterik/fart/issues/52) and [#53](https://github.com/vanesterik/fart/issues/53)
+**Source:** [Epic #44: Server Foundation](https://github.com/vanesterik/fartt/issues/44), stories [#50](https://github.com/vanesterik/fartt/issues/50), [#51](https://github.com/vanesterik/fartt/issues/51), [#52](https://github.com/vanesterik/fartt/issues/52) and [#53](https://github.com/vanesterik/fartt/issues/53)
 **Related PRD:** `docs/product/mcp-trading-agent-prd.md` (§5 Solution Overview, §7 epic A)
 
 ## Problem
@@ -10,7 +10,7 @@
 The PRD replaces the self-built trading platform with an MCP server that Claude Code operates. Epic A lays the foundation every later tool builds on:
 
 - **Exchange access** goes through an internal interface backed by ccxt, so Bitvavo is not a lock-in.
-- **The candle cache** serves both offline training (`fart download`) and the agent.
+- **The candle cache** serves both offline training (`fartt download`) and the agent.
 - **The MCP server** exposes the first tool, `get_candles`.
 - **Superseded code goes:** the unwired Part B scaffolding and the second Bitvavo integration.
 
@@ -30,9 +30,9 @@ Checked on 2026-10-07 against ccxt 4.5.85 and the MCP Python SDK v2.3:
 ## Decisions
 
 - **Market symbols use ccxt's format, `BTC/EUR`,** in tool arguments and the CLI. Cache file names keep `BTC-EUR`: `get_data_filepath` converts `/` to `-`, so existing files and notebook calls that pass `BTC-EUR` resolve to the same path.
-- **Server settings are CLI options on a new `fart serve` command,** set in `.mcp.json`. A config file arrives in epic D, when the risk limits need one.
+- **Server settings are CLI options on a new `fartt serve` command,** set in `.mcp.json`. A config file arrives in epic D, when the risk limits need one.
 - **The server trades one configured market and interval.** `get_candles` takes no market or interval argument.
-- **The downloader is split into a reusable cache** (approach A). `fart download` and `get_candles` share one cache path.
+- **The downloader is split into a reusable cache** (approach A). `fartt download` and `get_candles` share one cache path.
 - **No API keys in epic A.** Candles are public, and keys come back in epic D or F under names that don't mention Bitvavo.
 
 ## Design
@@ -40,7 +40,7 @@ Checked on 2026-10-07 against ccxt 4.5.85 and the MCP Python SDK v2.3:
 ### 1. Exchange layer (story #50)
 
 ```
-src/fart/exchange/
+src/fartt/exchange/
 ├── __init__.py
 ├── candle.py          # Candle NamedTuple
 ├── exchange.py        # Exchange Protocol
@@ -61,9 +61,9 @@ src/fart/exchange/
   - An unknown market raises `ValueError` naming the market and the exchange.
   - ccxt's network and exchange errors pass through unchanged. The cache and the server decide how to present them.
 
-### 2. Candle cache and `fart download` (story #51)
+### 2. Candle cache and `fartt download` (story #51)
 
-`src/fart/candle_cache.py` holds `CandleCache(exchange, assets_dir, market, interval, history_start_ms=<2019-03-09>)`:
+`src/fartt/candle_cache.py` holds `CandleCache(exchange, assets_dir, market, interval, history_start_ms=<2019-03-09>)`:
 
 - **`iter_update() -> Iterator[int]`** fetches every closed candle newer than the cache, one batch at a time. After **appending** each batch to the CSV, it yields the batch size.
   - It resumes at the last cached timestamp plus one interval, or at `history_start_ms` when the cache is empty.
@@ -74,12 +74,12 @@ src/fart/exchange/
 - **`latest(count: int) -> list[Candle]`** returns the last `count` cached candles.
 - The interval-to-milliseconds helper moves here from `Downloader`.
 
-**`fart download`** builds `CcxtExchange` and `CandleCache` and wraps `iter_update()` in tqdm. Its options are `--exchange` (default `bitvavo`), `--market` (default `BTC/EUR`), `--interval` and `--assets-dir`, and the tabulate banner stays. `downloader.py` and the `Downloader` class are deleted.
+**`fartt download`** builds `CcxtExchange` and `CandleCache` and wraps `iter_update()` in tqdm. Its options are `--exchange` (default `bitvavo`), `--market` (default `BTC/EUR`), `--interval` and `--assets-dir`, and the tabulate banner stays. `downloader.py` and the `Downloader` class are deleted.
 
 ### 3. MCP server and `get_candles` (story #52)
 
 ```
-src/fart/server/
+src/fartt/server/
 ├── __init__.py
 └── server.py      # build_server(cache, market, interval) -> MCPServer
 ```
@@ -95,23 +95,23 @@ src/fart/server/
   - **Exchange unreachable, cache has data:** return the cached candles with `is_current: false` and a `warning` explaining why, and let the agent decide whether stale data means "hold".
   - **Exchange unreachable, cache empty:** `ToolError` saying no data is available and suggesting a retry next cycle.
   - **`count` out of range:** rejected with the allowed range.
-- **`fart serve`** takes `--exchange`, `--market`, `--interval` and `--assets-dir`. It builds the exchange and the cache, checks `has_market` at startup (exiting with a clear message if the check fails), and runs the server over stdio. Logging stays on loguru's existing stderr and `logs/cli.log` sinks, and nothing writes to stdout.
+- **`fartt serve`** takes `--exchange`, `--market`, `--interval` and `--assets-dir`. It builds the exchange and the cache, checks `has_market` at startup (exiting with a clear message if the check fails), and runs the server over stdio. Logging stays on loguru's existing stderr and `logs/cli.log` sinks, and nothing writes to stdout.
 - **`.mcp.json`** registers the server for the project:
   ```json
-  {"mcpServers": {"fart": {"command": "uv", "args": ["run", "fart", "serve", "--market", "BTC/EUR", "--interval", "1h"]}}}
+  {"mcpServers": {"fartt": {"command": "uv", "args": ["run", "fartt", "serve", "--market", "BTC/EUR", "--interval", "1h"]}}}
   ```
   `1h` is a placeholder until epic B chooses the interval.
 - **Dependencies added:** `mcp` (v2) and `ccxt`.
-- **A known one-off cost:** with an empty cache, the first call fills the history from 2019 (about 60 batches at 1h). The README says to run `fart download` first.
+- **A known one-off cost:** with an empty cache, the first call fills the history from 2019 (about 60 batches at 1h). The README says to run `fartt download` first.
 
 ### 4. Removal and documentation (story #53)
 
 - **Removed:**
-  - `src/fart/core/` (`exchange.py`, `dashboard.py`, `broker.py`). Nothing in `src`, `tests` or the notebooks imports it.
+  - `src/fartt/core/` (`exchange.py`, `dashboard.py`, `broker.py`). Nothing in `src`, `tests` or the notebooks imports it.
   - From `pyproject.toml`: `python-bitvavo-api`, `rich` and `babel`. Only `dashboard.py` imports the last two, and Typer still pulls in `rich` itself.
   - Entries in `constants.py` that only the dashboard used.
 - **`CLAUDE.md` rewritten:** the overview, current state, commands and architecture describe the MCP server, the exchange layer, the candle cache and the PRD instead of the Part A/B split. The notes on the model pipeline stay, because epic B builds on it.
-- **`README.md` rewritten:** the Part A/B framing and the planned execution state machine are replaced by the MCP architecture, setup (`uv sync`, `fart download`, `.mcp.json`, permissions) and a link to the PRD. Research-source sections stay where they still apply: risk-control sources for epic D, model sources for epic B.
+- **`README.md` rewritten:** the Part A/B framing and the planned execution state machine are replaced by the MCP architecture, setup (`uv sync`, `fartt download`, `.mcp.json`, permissions) and a link to the PRD. Research-source sections stay where they still apply: risk-control sources for epic D, model sources for epic B.
 - **Kept:** the three historical specs in `docs/specs/` that link to the deleted Part A PRD. They're records of past work.
 
 ## Quality gate
@@ -129,7 +129,7 @@ There is no CI, so lefthook is the gate. It follows the setup in the operator's 
 - **`CandleCache`:** resume, no duplicates, skipping gaps, append-only writes, `latest()`, and filename conversion from `BTC/EUR` to `BTC-EUR`.
 - **Server:** the SDK's in-memory client against `build_server(...)` covers structured output, the stale-data warning, both error paths and `count` validation. The exact v2 client API is checked when the plan is written.
 - **Live smoke test:** fetches real BTC/EUR candles through ccxt. It's marked `network` and deselected by default in the pytest config, so the default suite stays offline. Run it with `uv run pytest -m network`.
-- **Manual acceptance (#52):** a new Claude Code session in the project shows `fart` as connected in `/mcp`, and the agent returns the latest candles when asked.
+- **Manual acceptance (#52):** a new Claude Code session in the project shows `fartt` as connected in `/mcp`, and the agent returns the latest candles when asked.
 
 ## Delivery
 
@@ -138,7 +138,7 @@ One pull request per story. This design lands in the first one, and later storie
 | Pull request | Story | Commits |
 |---|---|---|
 | #54 | #50 exchange layer | PRD → this design → plan → pre-push gate → task commits |
-| next | #51 candle cache and `fart download` | plan → task commits |
+| next | #51 candle cache and `fartt download` | plan → task commits |
 | next | #52 MCP server and `get_candles` | plan → task commits |
 | next | #53 removal and documentation | plan → task commits |
 

@@ -5,7 +5,7 @@ import polars as pl
 import seaborn as sns
 from matplotlib.colors import ListedColormap
 
-from fart.constants import IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN, TIMESTAMP
+from fartt.constants import IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN, TIMESTAMP
 
 
 def plot_missing_value_heatmap(df: pl.DataFrame, title: Optional[str] = None) -> None:

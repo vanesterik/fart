@@ -1,9 +1,9 @@
 import torch
 from torch import nn
 
-from fart.model.builder import ModelBuilder
-from fart.model.mlp_builder import MLPBuilder
-from fart.model.mlp_config import MLPConfig
+from fartt.model.builder import ModelBuilder
+from fartt.model.mlp_builder import MLPBuilder
+from fartt.model.mlp_config import MLPConfig
 
 
 def test_mlp_builder_layer_count_and_output_shape() -> None:

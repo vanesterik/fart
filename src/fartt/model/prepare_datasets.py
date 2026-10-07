@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from fart.features.calculate_magnitude import calculate_magnitude
-from fart.features.sort_and_deduplicate import sort_and_deduplicate
+from fartt.features.calculate_magnitude import calculate_magnitude
+from fartt.features.sort_and_deduplicate import sort_and_deduplicate
 
 
 def prepare_datasets(

@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import StrMethodFormatter
 
-from fart.constants import BLACK, HONOLULU_BLUE
-from fart.visualization.diverging_bar_chart import plot_diverging_bars
+from fartt.constants import BLACK, HONOLULU_BLUE
+from fartt.visualization.diverging_bar_chart import plot_diverging_bars
 
 
 def plot_trade_returns(

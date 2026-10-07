@@ -2,7 +2,7 @@ import numpy as np
 import numpy.typing as npt
 from matplotlib.axes import Axes
 
-from fart.constants import IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN
+from fartt.constants import IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN
 
 
 def plot_diverging_bars(

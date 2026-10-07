@@ -2,12 +2,12 @@
 
 **Date:** 2026-08-03 
 **Status:** Approved
-**Source:** [GitHub issue #5](https://github.com/vanesterik/fart/issues/5), part of [Epic #1: N-BEATS Signal Model](https://github.com/vanesterik/fart/issues/1)
+**Source:** [GitHub issue #5](https://github.com/vanesterik/fartt/issues/5), part of [Epic #1: N-BEATS Signal Model](https://github.com/vanesterik/fartt/issues/1)
 **Related PRD:** `docs/product/part-a-signal-generation-refactor-prd.md` (Story 2, scoped down to the epic's "quick-prototype" tiny act of discovery)
 
 ## Problem
 
-`fart/model/train_model.py` currently loads candle data, computes technical indicators, and applies the existing chronological train/test split — but `train()` only logs the resulting shapes; it doesn't fit a model. Before investing in full N-BEATS training/tuning (a later epic story), the project needs a fast sanity check: train N-BEATS on a small recent slice of BTC candles and confirm it produces a magnitude + confidence prediction per candle without errors.
+`fartt/model/train_model.py` currently loads candle data, computes technical indicators, and applies the existing chronological train/test split — but `train()` only logs the resulting shapes; it doesn't fit a model. Before investing in full N-BEATS training/tuning (a later epic story), the project needs a fast sanity check: train N-BEATS on a small recent slice of BTC candles and confirm it produces a magnitude + confidence prediction per candle without errors.
 
 This is deliberately narrow. It does not need to beat any baseline, run a real backtest, or produce a calibrated confidence value — those are separate, later stories (walk-forward backtest harness; select/wire up production model). It only needs to prove the architecture runs end-to-end on real data.
 
@@ -22,7 +22,7 @@ This is deliberately narrow. It does not need to beat any baseline, run a real b
 
 ### N-BEATS implementation: hand-rolled PyTorch, not a library
 
-`torch` is already a bare dependency (`pyproject.toml`, CPU wheel index) but unused anywhere in `src/`. Rather than adopting a forecasting library (e.g. `neuralforecast`) with its own opinionated data/training API, N-BEATS is implemented directly as a small custom module, matching the codebase's existing pattern of small, focused modules under `fart/model/` and `fart/features/`.
+`torch` is already a bare dependency (`pyproject.toml`, CPU wheel index) but unused anywhere in `src/`. Rather than adopting a forecasting library (e.g. `neuralforecast`) with its own opinionated data/training API, N-BEATS is implemented directly as a small custom module, matching the codebase's existing pattern of small, focused modules under `fartt/model/` and `fartt/features/`.
 
 ### Univariate input: Close-price returns only
 
@@ -50,9 +50,9 @@ Per the original N-BEATS paper, the per-block backcast is architectural (drives 
 
 ## New Files
 
-### `src/fart/model/nbeats_config.py`
+### `src/fartt/model/nbeats_config.py`
 
-Pydantic config, mirroring the existing style of `fart/features/technical_indicators_config.py`:
+Pydantic config, mirroring the existing style of `fartt/features/technical_indicators_config.py`:
 
 ```python
 class NBeatsConfig(BaseModel):
@@ -66,7 +66,7 @@ class NBeatsConfig(BaseModel):
 
 `forecast_length` is not part of the config — it's fixed at 1 (see above) and referenced as a module-level constant in `nbeats.py` rather than a tunable, since nothing in this story varies it.
 
-### `src/fart/model/nbeats.py`
+### `src/fartt/model/nbeats.py`
 
 The network architecture only — no windowing, no training loop.
 
@@ -86,7 +86,7 @@ class NBeatsNet(nn.Module):
 
 Doubly-residual stacking: each block receives the previous block's backcast residual (`x - backcast`) as its own input, and the final forecast is the sum of all blocks' forecasts — standard N-BEATS wiring, applied with `forecast width = 2` throughout instead of 1.
 
-### `src/fart/model/nbeats_dataset.py`
+### `src/fartt/model/nbeats_dataset.py`
 
 Turns a chronological Close-price series into model-ready tensors. Kept separate from `nbeats.py` so the windowing/returns logic is testable independent of any torch model internals.
 
@@ -112,7 +112,7 @@ def build_return_windows(
 
 ## Modified Files
 
-### `src/fart/model/train_model.py`
+### `src/fartt/model/train_model.py`
 
 `prepare_training_data()` gains a `months` parameter:
 
@@ -156,7 +156,7 @@ Steps:
 5. Log a summary via loguru (matching the existing `X_train=... ` shape-logging style): candle count, mean/std of `magnitudes`, mean of `confidences`.
 6. Return `(magnitudes, confidences)`.
 
-### `src/fart/cli.py`
+### `src/fartt/cli.py`
 
 `train` command gains a `--months` option, default `6`, following the existing `Annotated[..., typer.Option(...)]` pattern already used elsewhere in the file:
 
@@ -172,7 +172,7 @@ Passed through to `train_model.train(...)`.
 ## Data Flow
 
 ```
-fart train --months 6
+fartt train --months 6
   → prepare_training_data(data_dir, market, interval, months=6)
       → pl.read_csv(filepath)
       → filter to Timestamp >= max(Timestamp) - 6*30 days

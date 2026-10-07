@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from fart.constants import IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN
+from fartt.constants import IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN
 
 
 def learning_curve_chart(loss_history: list[dict[str, float]]) -> None:
@@ -13,7 +13,7 @@ def learning_curve_chart(loss_history: list[dict[str, float]]) -> None:
     Parameters
     ----------
     - loss_history (list[dict[str, float]]): Per-epoch records from
-      `fart/model/train_model.py::train_model`, each with `epoch`,
+      `fartt/model/train_model.py::train_model`, each with `epoch`,
       `train_loss`, `val_loss`. Raises if empty -- pass a model trained
       with `x_val`/`y_val` given to get a per-epoch loss history.
 

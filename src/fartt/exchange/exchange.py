@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from fart.exchange.candle import Candle
+from fartt.exchange.candle import Candle
 
 
 class Exchange(Protocol):

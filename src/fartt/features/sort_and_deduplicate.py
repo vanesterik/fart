@@ -1,6 +1,6 @@
 import polars as pl
 
-from fart.constants import TIMESTAMP
+from fartt.constants import TIMESTAMP
 
 
 def sort_and_deduplicate(df: pl.DataFrame) -> pl.DataFrame:
