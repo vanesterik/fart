@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "fartt": {
+      "command": "uv",
+      "args": ["run", "fartt", "serve", "--market", "BTC/EUR", "--interval", "1h"]
+    }
+  }
+}
