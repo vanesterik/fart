@@ -85,9 +85,9 @@ src/fartt/server/
 ```
 
 - **`build_server(...)`** is a factory, so tests can pass a cache backed by a fake exchange. The server's `instructions` tell the agent that it serves one configured market and interval and that every cycle starts with `get_candles`.
-- **`get_candles(count: int = 50)`** accepts 1 to 1000. It calls `cache.update()` and returns a Pydantic model:
+- **`get_candles(count: int = 50)`** accepts 1 to 200 (lowered from 1000 in story #52: 1000 candles came to about 40k tokens, over Claude Code's MCP output limit). It calls `cache.update()` and returns a Pydantic model:
   - `market`, `interval`
-  - `candles`: a list of `{time (ISO 8601 UTC), open, high, low, close, volume}`
+  - `columns` and `rows`: each candle is one `[time (ISO 8601 UTC), open, high, low, close, volume]` row, which is far more compact than one object per candle
   - `new_candles`: how many were fetched by this call
   - `is_current`: whether the last candle is the most recently closed period
   - `warning`: `null` unless something degraded
