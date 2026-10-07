@@ -43,7 +43,7 @@ task outdated                    # direct dependencies with a newer release
 
 Tool versions are upgraded on purpose, never because a run nags: ruff's rule set is pinned in `pyproject.toml`, and pyright's new-release warning is silenced. Instead, Dependabot (`.github/dependabot.yml`) opens weekly pull requests for newer releases: minor and patch updates grouped into one for dev tools and one for runtime dependencies, each major update on its own. There's no CI, so check a Dependabot pull request out and run `task check` (or push to it) before merging. `task outdated` is the on-demand version.
 
-Everything below remains the direct route, and is what the Taskfile calls. Dependency management is via `uv` (see `uv.lock`), run from the repository root:
+Everything below remains the direct route, and is what the Taskfile calls. Dependency management is via `uv` (see `uv.lock`), run from the repository root. The Python version is pinned in `.python-version` (3.14) and matched by `requires-python` in `pyproject.toml`; Dependabot doesn't track it, so moving to a new Python release is a deliberate change to both.
 
 ```bash
 uv sync                          # install dependencies
