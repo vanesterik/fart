@@ -34,7 +34,7 @@ uv sync                          # install dependencies
 uv run fart download             # download candle data (see arguments below)
 uv run pytest                    # run test suite
 uv run pytest tests/model/test_train_model.py::test_train_model_reduces_loss  # single test
-uv run pytest -m "not slow"      # skip slow tests
+uv run pytest -m network         # run the live exchange tests (deselected by default)
 uv run ruff format .             # format
 uv run ruff check . --fix        # lint
 uv run pyright                   # type check (strict mode, src/ only — tests/ excluded)

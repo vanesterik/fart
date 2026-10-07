@@ -36,7 +36,6 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pyright>=1.1.407",
-    "pytest-cov>=7.0.0",
     "pytest>=9.0.2",
     "ruff>=0.14.8",
 ]
@@ -73,33 +72,9 @@ stubPath = "typings"
 
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]                        # Directories to search for tests
-python_files = ["test_*.py"]                 # Test file patterns
-python_classes = ["Test*"]                   # Test class patterns
-python_functions = ["test_*"]                # Test function patterns
-pythonpath = ["src"]                         # Add src to Python path
-addopts = [                                  # Additional command-line options
-    "-v",                                    # Verbose output
-    "--strict-markers",                      # Error on unknown markers
-    "--cov=fart",                            # Measure coverage for this package
-    "--cov-report=term-missing",             # Show missing lines in terminal
-    "-m", "not network",                     # Stay offline unless asked (`-m network`)
-]
-markers = [                                  # Custom markers
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "network: calls a live exchange API (deselected by default; run with '-m network')",
-]
-
-[tool.coverage.run]
-source = ["src/fart"]                        # What to measure
-branch = true                                # Measure branch coverage (if/else)
-omit = [                                     # What to exclude - use wildcards that work on Windows
-    "__init__.py",
-    "cli.py",
-]
-
-[tool.coverage.report]
-precision = 2                               # Decimal places in coverage report 
-show_missing = true                         # Show missing lines in report
-skip_covered = false                        # Don't skip fully covered files
+# Tests marked `network` call a live exchange API. They are deselected by
+# default so the suite, and the lefthook gate that runs it, stays offline;
+# run them with `uv run pytest -m network`. Strict markers turn a misspelt
+# marker into an error instead of a test that silently always runs.
+addopts = ["--strict-markers", "-m", "not network"]
+markers = ["network: calls a live exchange API"]
