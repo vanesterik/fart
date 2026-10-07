@@ -38,6 +38,10 @@ tasks:
   typecheck:
     desc: Type check
     prefix: typecheck
+    # The pyright wrapper checks for a newer release on every run and warns.
+    # Upgrades are deliberate (dev dependency in pyproject.toml), so silence it.
+    env:
+      PYRIGHT_PYTHON_IGNORE_WARNINGS: '1'
     cmds:
       - uv run pyright
 

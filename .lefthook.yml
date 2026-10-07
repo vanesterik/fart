@@ -49,4 +49,5 @@ pre-commit:
       priority: 2
       files: git ls-files
       glob: '*.py'
-      run: uv run pyright
+      # Upgrades are deliberate; don't warn about newer pyright releases.
+      run: PYRIGHT_PYTHON_IGNORE_WARNINGS=1 uv run pyright
