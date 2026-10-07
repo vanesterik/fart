@@ -82,10 +82,12 @@ addopts = [                                  # Additional command-line options
     "--strict-markers",                      # Error on unknown markers
     "--cov=fart",                            # Measure coverage for this package
     "--cov-report=term-missing",             # Show missing lines in terminal
+    "-m", "not network",                     # Stay offline unless asked (`-m network`)
 ]
 markers = [                                  # Custom markers
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
+    "network: calls a live exchange API (deselected by default; run with '-m network')",
 ]
 
 [tool.coverage.run]

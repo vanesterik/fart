@@ -44,13 +44,13 @@ uv run pyright                   # type check (strict mode, src/ only — tests/
 
 There is no `fart train` CLI command — it was removed, and the train/evaluate pipeline (`prepare_datasets` → `MLPBuilder`/`CNNBuilder` → `train_model` → `evaluate_model`) is currently only exercised from `notebooks/2.0-kve-data-analysis-mlp.ipynb` and `notebooks/2.1-kve-data-analysis-cnn.ipynb`, not wired into any CLI entrypoint. Each notebook loads the cached CSV for a market/interval, sorts/deduplicates it, computes `Magnitude`, builds sliding lag windows via a chronological 60/20/20 train/val/test split (`train_size`/`val_size` on `prepare_datasets`), builds its model (`MLPBuilder(config).build()` or `CNNBuilder(config).build()`), fits it with `train_model` — a single fit against the validation split, no cross-validation (see "Current state" above) — and logs directional accuracy/RMSE/MAE via `evaluate_model`. Neither notebook calls `persist_model`, so no checkpoint is saved from this path currently; `predict_model.py` remains an empty stub regardless.
 
-Pre-commit hooks are managed by `lefthook` (`.lefthook.yml`): notebooks get their outputs stripped, Python files get `ruff format` + `ruff check --fix`, then `pyright`, on every commit.
+Hooks are managed by `lefthook` (`.lefthook.yml`) and stand in for CI, which this project doesn't have. On every commit, notebooks get their outputs stripped, staged Python files get `ruff format` + `ruff check --fix`, then `pyright` and `pytest` run. On every push, the full suite runs on the whole repository (`ruff format --check .`, `ruff check .`, `pyright`, `pytest`), because pre-commit only sees staged files and a commit touching only `pyproject.toml`, `uv.lock` or `.mcp.json` would otherwise skip tests and type checks. `git push --no-verify` skips the gate for one push; use it deliberately, never by default. Tests marked `network` call a live exchange and are deselected by default; run them with `uv run pytest -m network`.
 
 ## Development workflow and pull requests
 
 The general workflow and pull request flow come from the global `~/.claude/CLAUDE.md` (the `vanesterik/claude-config` repository). What's specific to this repository:
 
-- There's no CI. Lefthook runs `ruff` and `pyright` on each commit, and `uv run pytest` must pass before each task commit.
+- There's no CI. Lefthook is the gate: pre-commit checks staged files and runs the tests, and pre-push runs the full suite on the whole repository (see Commands).
 - The repository allows rebase merging only and has `deleteBranchOnMerge` set, so only the local branch needs deleting after a merge.
 
 ## User stories / issue tracking
