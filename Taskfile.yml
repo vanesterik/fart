@@ -61,6 +61,13 @@ tasks:
     cmds:
       - uv run pytest -m network
 
+  # On-demand counterpart to Dependabot's weekly pull requests
+  # (.github/dependabot.yml): direct dependencies with a newer release.
+  outdated:
+    desc: List direct dependencies that have a newer release
+    cmds:
+      - uv tree --quiet --outdated --depth 1 | grep "latest:" || echo "Every direct dependency is up to date."
+
   pre-commit:
     desc: Run the checks the git pre-commit hook runs, over staged files
     prefix: pre-commit
