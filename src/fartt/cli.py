@@ -116,13 +116,21 @@ def _open_cache(
             "Markets use ccxt's format, e.g. 'BTC/EUR' rather than 'BTC-EUR'."
         )
 
-    return CandleCache(
-        exchange=client,
-        assets_dir=assets_dir,
-        market=market,
-        interval=interval,
-        history_start_ms=DEFAULT_HISTORY_START_MS,
-    )
+    try:
+        return CandleCache(
+            exchange=client,
+            assets_dir=assets_dir,
+            market=market,
+            interval=interval,
+            history_start_ms=DEFAULT_HISTORY_START_MS,
+        )
+    except ValueError:
+        # The exchange offers it, but the cache can't size it (e.g. a
+        # lowercase `1w` or seconds-based `1s`); see issue #59.
+        parser.error(
+            f"interval '{interval}' is offered by exchange '{exchange}' but not "
+            "supported by the candle cache (units: m, h, d, W, M)"
+        )
 
 
 def _download(

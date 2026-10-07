@@ -184,3 +184,18 @@ def test_serve_rejects_an_unknown_market(
     assert exit_info.value.code == 2
     assert "BTC/EUR" in capsys.readouterr().err
     assert not served
+
+
+def test_download_rejects_an_offered_interval_the_cache_cannot_handle(
+    fake_exchange: FakeExchange, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Some exchanges offer intervals such as binance's lowercase `1w`.
+    fake_exchange.intervals = ["1h", "1w"]
+
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main(["download", "--assets-dir", str(tmp_path), "--interval", "1w"])
+
+    assert exit_info.value.code == 2
+    error = capsys.readouterr().err
+    assert "interval '1w'" in error
+    assert "Traceback" not in error
