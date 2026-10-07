@@ -38,7 +38,10 @@ task typecheck                   # pyright (strict mode, src/ only — tests/ ex
 task test                        # pytest, offline
 task test:network                # the tests that call a live exchange API (deselected by default)
 task pre-commit                  # the pre-commit hook's checks over staged files
+task outdated                    # direct dependencies with a newer release
 ```
+
+Tool versions are upgraded on purpose, never because a run nags: ruff's rule set is pinned in `pyproject.toml`, and pyright's new-release warning is silenced. Instead, Dependabot (`.github/dependabot.yml`) opens weekly pull requests for newer releases: minor and patch updates grouped into one for dev tools and one for runtime dependencies, each major update on its own. There's no CI, so check a Dependabot pull request out and run `task check` (or push to it) before merging. `task outdated` is the on-demand version.
 
 Everything below remains the direct route, and is what the Taskfile calls. Dependency management is via `uv` (see `uv.lock`), run from the repository root:
 
