@@ -3,6 +3,15 @@ from typing import Protocol
 from fartt.exchange.candle import Candle
 
 
+class ExchangeUnavailable(Exception):
+    """
+    The exchange couldn't answer: a network failure, maintenance, a rate
+    limit or another error on its side. Callers outside the exchange layer
+    catch this instead of a library's own exceptions.
+
+    """
+
+
 class Exchange(Protocol):
     """
     Structural interface for market data from an exchange.
@@ -15,9 +24,16 @@ class Exchange(Protocol):
 
     Markets use ccxt's symbol format, e.g. `BTC/EUR`.
 
+    `has_market` and `fetch_closed_candles` raise `ExchangeUnavailable`
+    when the exchange can't be reached or refuses the request.
+
     """
 
     def has_market(self, market: str) -> bool: ...
+
+    def supported_intervals(self) -> list[str]:
+        """Candle intervals the exchange offers, e.g. `["1m", "1h", "1d"]`."""
+        ...
 
     def fetch_closed_candles(
         self, market: str, interval: str, since_ms: int, limit: int

@@ -5,6 +5,7 @@ from typing import Any
 import ccxt
 
 from fartt.exchange.candle import Candle
+from fartt.exchange.exchange import ExchangeUnavailable
 
 
 def _now_ms() -> int:
@@ -42,6 +43,9 @@ class CcxtExchange:
     def has_market(self, market: str) -> bool:
         return market in self._load_markets()
 
+    def supported_intervals(self) -> list[str]:
+        return list(self._client.timeframes)
+
     def fetch_closed_candles(
         self, market: str, interval: str, since_ms: int, limit: int
     ) -> list[Candle]:
@@ -52,7 +56,12 @@ class CcxtExchange:
         # was still forming when the exchange answered must not count as
         # closed just because its period ended while the reply was in flight.
         now_ms = self._clock()
-        rows = self._client.fetch_ohlcv(market, interval, since=since_ms, limit=limit)
+        try:
+            rows = self._client.fetch_ohlcv(
+                market, interval, since=since_ms, limit=limit
+            )
+        except (ccxt.NetworkError, ccxt.ExchangeError) as error:
+            raise self._unavailable(error) from error
         interval_ms = ccxt.Exchange.parse_timeframe(interval) * 1000
 
         candles = [
@@ -86,5 +95,13 @@ class CcxtExchange:
 
     def _load_markets(self) -> dict[str, Any]:
         if self._markets is None:
-            self._markets = self._client.load_markets()
+            try:
+                self._markets = self._client.load_markets()
+            except (ccxt.NetworkError, ccxt.ExchangeError) as error:
+                raise self._unavailable(error) from error
         return self._markets
+
+    def _unavailable(self, error: Exception) -> ExchangeUnavailable:
+        return ExchangeUnavailable(
+            f"Exchange '{self.exchange_id}' is unavailable: {error}"
+        )
