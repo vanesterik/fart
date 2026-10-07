@@ -1,7 +1,7 @@
 # Server Foundation — Design
 
 **Date:** 2026-10-07
-**Status:** Draft, awaiting review
+**Status:** Approved
 **Source:** [Epic #44: Server Foundation](https://github.com/vanesterik/fart/issues/44), stories [#50](https://github.com/vanesterik/fart/issues/50), [#51](https://github.com/vanesterik/fart/issues/51), [#52](https://github.com/vanesterik/fart/issues/52) and [#53](https://github.com/vanesterik/fart/issues/53)
 **Related PRD:** `docs/product/mcp-trading-agent-prd.md` (§5 Solution Overview, §7 epic A)
 
