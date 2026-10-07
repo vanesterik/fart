@@ -94,12 +94,12 @@ def _bbands_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
         mpf.make_addplot(
             df[BBANDS_MIDDLE].to_numpy(),
             color=HONOLULU_BLUE,
-            fill_between=dict(
-                alpha=0.1,
-                color=HONOLULU_BLUE,
-                y1=df[BBANDS_LOWER].to_numpy(),
-                y2=df[BBANDS_UPPER].to_numpy(),
-            ),
+            fill_between={
+                "alpha": 0.1,
+                "color": HONOLULU_BLUE,
+                "y1": df[BBANDS_LOWER].to_numpy(),
+                "y2": df[BBANDS_UPPER].to_numpy(),
+            },
             label=BBANDS,
             panel=0,
         ),
@@ -127,20 +127,20 @@ def _ema_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
             alpha=CONTOUR_LINE_ALPHA,
             color=HONOLULU_BLUE,
             fill_between=[
-                dict(
-                    alpha=CONTOUR_LINE_ALPHA,
-                    color=PERSIAN_GREEN_MAIN,
-                    y1=ema_fast,
-                    y2=ema_slow,
-                    where=ema_fast > ema_slow,
-                ),
-                dict(
-                    alpha=CONTOUR_LINE_ALPHA,
-                    color=IMPERIAL_RED_MAIN,
-                    y1=ema_fast,
-                    y2=ema_slow,
-                    where=ema_fast < ema_slow,
-                ),
+                {
+                    "alpha": CONTOUR_LINE_ALPHA,
+                    "color": PERSIAN_GREEN_MAIN,
+                    "y1": ema_fast,
+                    "y2": ema_slow,
+                    "where": ema_fast > ema_slow,
+                },
+                {
+                    "alpha": CONTOUR_LINE_ALPHA,
+                    "color": IMPERIAL_RED_MAIN,
+                    "y1": ema_fast,
+                    "y2": ema_slow,
+                    "where": ema_fast < ema_slow,
+                },
             ],
             label=EMA_FAST,
             panel=0,
@@ -186,12 +186,12 @@ def _rsi_addplot(df: pl.DataFrame) -> list[dict[str, Any]]:
         mpf.make_addplot(
             df[RSI].to_numpy(),
             color=IMPERIAL_RED_MAIN,
-            fill_between=dict(
-                alpha=0.1,
-                color=IMPERIAL_RED_MAIN,
-                y1=rsi_upper_bound,
-                y2=rsi_lower_bound,
-            ),
+            fill_between={
+                "alpha": 0.1,
+                "color": IMPERIAL_RED_MAIN,
+                "y1": rsi_upper_bound,
+                "y2": rsi_lower_bound,
+            },
             ylabel=RSI,
             panel=2,
         ),

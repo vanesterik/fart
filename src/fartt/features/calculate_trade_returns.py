@@ -1,19 +1,17 @@
-from typing import List, Optional, Tuple
-
 import numpy as np
 import numpy.typing as npt
 
 
 def calculate_trade_returns(
     magnitudes: npt.ArrayLike,
-    predicted_magnitudes: Optional[npt.ArrayLike] = None,
+    predicted_magnitudes: npt.ArrayLike | None = None,
     initial_capital: float = 500,
     cost_pct: float = 0.0025,
     slippage_pct: float = 0.0,
-    threshold: Optional[float] = None,
-    max_holding_period: Optional[int] = None,
-    stop_loss_pct: Optional[float] = None,
-) -> Tuple[List[float], List[float]]:
+    threshold: float | None = None,
+    max_holding_period: int | None = None,
+    stop_loss_pct: float | None = None,
+) -> tuple[list[float], list[float]]:
     """
     Backtest a long-only trading strategy over a series of signed
     percent-change magnitudes (see `calculate_magnitude`), deciding entry and
@@ -102,7 +100,7 @@ def calculate_trade_returns(
         for entry_index, exit_index in trade_boundaries
     ]
 
-    profits: List[float] = []
+    profits: list[float] = []
     capital = initial_capital
     for net_return in returns:
         profit = capital * net_return
@@ -116,10 +114,10 @@ def _find_trade_boundaries(
     values: npt.NDArray[np.float64],
     signal_values: npt.NDArray[np.float64],
     threshold: float,
-    max_holding_period: Optional[int] = None,
-    stop_loss_pct: Optional[float] = None,
-) -> List[Tuple[int, int]]:
-    boundaries: List[Tuple[int, int]] = []
+    max_holding_period: int | None = None,
+    stop_loss_pct: float | None = None,
+) -> list[tuple[int, int]]:
+    boundaries: list[tuple[int, int]] = []
     is_open = False
     entry_index = 0
     running_return = 0.0
@@ -137,15 +135,14 @@ def _find_trade_boundaries(
             if not np.isnan(magnitude):
                 running_return = (1 + running_return) * (1 + magnitude) - 1
 
-            if signal < -threshold:
-                boundaries.append((entry_index, i))
-                is_open = False
-            elif (
-                max_holding_period is not None and i - entry_index >= max_holding_period
+            if (
+                signal < -threshold
+                or (
+                    max_holding_period is not None
+                    and i - entry_index >= max_holding_period
+                )
+                or (stop_loss_pct is not None and running_return <= -stop_loss_pct)
             ):
-                boundaries.append((entry_index, i))
-                is_open = False
-            elif stop_loss_pct is not None and running_return <= -stop_loss_pct:
                 boundaries.append((entry_index, i))
                 is_open = False
 

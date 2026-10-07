@@ -20,9 +20,8 @@ def test_get_last_modified_data_file() -> None:
 
 
 def test_get_last_modified_data_file_empty_dir() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        with pytest.raises(ValueError):
-            get_last_modified_data_file(temp_dir)
+    with tempfile.TemporaryDirectory() as temp_dir, pytest.raises(ValueError):
+        get_last_modified_data_file(temp_dir)
 
 
 def test_get_last_modified_data_file_no_csv_files() -> None:

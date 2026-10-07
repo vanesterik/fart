@@ -125,10 +125,13 @@ class CandleCache:
                 since_ms += self._batch_limit * self._interval_ms
                 continue
 
-            if last is not None and batch[0].timestamp == last.timestamp:
-                if batch[0] != last:
-                    self._replace_last_line(batch[0])
-                    last = batch[0]
+            if (
+                last is not None
+                and batch[0].timestamp == last.timestamp
+                and batch[0] != last
+            ):
+                self._replace_last_line(batch[0])
+                last = batch[0]
 
             new = [c for c in batch if last is None or c.timestamp > last.timestamp]
             if new:

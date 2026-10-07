@@ -1,6 +1,12 @@
 import numpy as np
 import torch
-from sklearn.metrics import mean_absolute_error, root_mean_squared_error  # pyright: ignore[reportMissingTypeStubs, reportUnknownVariableType] -- sklearn ships no type stubs (sklearn/metrics/__init__.py)
+
+# sklearn ships no type stubs (sklearn/metrics/__init__.py), so each imported
+# name is partially unknown to pyright.
+from sklearn.metrics import (  # pyright: ignore[reportMissingTypeStubs]
+    mean_absolute_error,  # pyright: ignore[reportUnknownVariableType]
+    root_mean_squared_error,  # pyright: ignore[reportUnknownVariableType]
+)
 from torch import nn
 
 

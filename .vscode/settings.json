@@ -8,5 +8,6 @@
         "Bollinger",
         "MACD",
         "Renderable"
-    ]
+    ],
+    "ruff.importStrategy": "fromEnvironment"
 }

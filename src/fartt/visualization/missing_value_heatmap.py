@@ -1,5 +1,3 @@
-from typing import Optional
-
 import matplotlib.pyplot as plt
 import polars as pl
 import seaborn as sns
@@ -8,7 +6,7 @@ from matplotlib.colors import ListedColormap
 from fartt.constants import IMPERIAL_RED_MAIN, PERSIAN_GREEN_MAIN, TIMESTAMP
 
 
-def plot_missing_value_heatmap(df: pl.DataFrame, title: Optional[str] = None) -> None:
+def plot_missing_value_heatmap(df: pl.DataFrame, title: str | None = None) -> None:
     """
     Plot a heatmap of missing values in `df`, one row per column, one
     column per record. If `df` has a `Timestamp` column, rows missing

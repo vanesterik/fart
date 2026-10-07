@@ -20,6 +20,5 @@ def test_get_latest_model_filepath_picks_max_by_filename() -> None:
 
 
 def test_get_latest_model_filepath_no_matches_raises() -> None:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        with pytest.raises(ValueError):
-            get_latest_model_filepath(Path(temp_dir), "BTC-EUR", "1d")
+    with tempfile.TemporaryDirectory() as temp_dir, pytest.raises(ValueError):
+        get_latest_model_filepath(Path(temp_dir), "BTC-EUR", "1d")
