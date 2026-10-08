@@ -28,8 +28,8 @@ INSTRUCTIONS = (
     "get_model_info to judge how far to trust the forecasts: which model "
     "makes them, its training and metrics, and how fresh the data is. "
     "Returns, costs and rates are fractions: 0.004 means 0.4%. If is_current "
-    "is false the data is stale: read the warning and treat the cycle as a "
-    "hold."
+    "is false the data is stale: read the warning (get_model_info's note) and "
+    "treat the cycle as a hold."
 )
 
 STALE_FORECAST_WARNING = (
@@ -436,7 +436,8 @@ def build_server(
             notes.append(
                 "The newest cached candle is older than the most recently "
                 "closed period: call get_candles to update the cache before "
-                "forecasting."
+                "forecasting; if it also reports is_current: false, treat this "
+                "cycle as a hold."
             )
 
         logger.info(
