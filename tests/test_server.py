@@ -538,6 +538,22 @@ async def test_get_model_info_flags_stale_data(tmp_path: Path) -> None:
 
 
 @pytest.mark.anyio
+async def test_get_model_info_stale_note_holds_on_any_stale_get_candles(
+    tmp_path: Path,
+) -> None:
+    # get_candles already ran, but the exchange hasn't published the newest
+    # candle: the note must end the cycle, not send the agent back.
+    exchange = FakeExchange([candle(0), candle(1)], now_ms=3 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    await _get_candles(cache)
+
+    note = (await _get_model_info(cache)).structured_content["note"]
+
+    assert "also reports is_current: false" in note
+    assert "hold" in note
+
+
+@pytest.mark.anyio
 async def test_get_model_info_reports_the_training_data_cutoff(
     tmp_path: Path,
 ) -> None:
