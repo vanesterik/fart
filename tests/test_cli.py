@@ -279,3 +279,16 @@ def test_serve_warns_about_a_threshold_below_the_round_trip_cost(
 
     assert "below the round-trip cost" in capsys.readouterr().err
     assert served["server"].ran
+
+
+def test_serve_help_gives_an_example_fraction_for_each_rate(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # An operator who reads "0.25" as 0.25% would set a 25% fee.
+    with pytest.raises(SystemExit):
+        cli.main(["serve", "--help"])
+
+    help_text = " ".join(capsys.readouterr().out.split())
+    assert "0.0025 is 0.25%" in help_text
+    assert "0.001 is 0.1%" in help_text
+    assert "0.007 is 0.7%" in help_text

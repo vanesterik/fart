@@ -54,13 +54,13 @@ def _add_analysis_options(command: argparse.ArgumentParser) -> None:
         "--slippage",
         type=float,
         default=Settings.slippage,
-        help="slippage per leg, as a fraction (default: %(default)s)",
+        help="slippage per leg, as a fraction: 0.001 is 0.1%% (default: %(default)s)",
     )
     command.add_argument(
         "--threshold",
         type=float,
         default=None,
-        help="minimum expected return to act on, as a fraction "
+        help="minimum expected return to act on, as a fraction: 0.007 is 0.7%% "
         "(default: the round-trip cost, 2 * (fee + slippage))",
     )
     command.add_argument(
