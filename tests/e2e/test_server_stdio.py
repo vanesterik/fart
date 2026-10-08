@@ -8,7 +8,9 @@ Each tool story adds its tool to `EXPECTED_TOOLS` and its call to
 """
 
 import json
+import os
 import queue
+import signal
 import subprocess
 import threading
 from pathlib import Path
@@ -20,6 +22,7 @@ from mcp.types import LATEST_PROTOCOL_VERSION
 
 ROOT = Path(__file__).resolve().parents[2]
 EXPECTED_TOOLS = ["get_candles"]
+# Per response; also the MCP client's read timeout, which defaults to none.
 RESPONSE_TIMEOUT_S = 120
 
 
@@ -48,7 +51,7 @@ async def test_trading_cycle_over_stdio(tmp_path: Path) -> None:
     command, *args = _server_command(tmp_path)
     params = StdioServerParameters(command=command, args=args, cwd=str(ROOT))
 
-    async with Client(params) as client:
+    async with Client(params, read_timeout_seconds=RESPONSE_TIMEOUT_S) as client:
         tools = sorted(tool.name for tool in (await client.list_tools()).tools)
         assert tools == sorted(EXPECTED_TOOLS)
 
@@ -92,7 +95,22 @@ def test_stdout_carries_only_the_protocol(tmp_path: Path) -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,
+        # Its own process group, so a failed test can kill `uv` and the
+        # `fartt serve` it started together; killing `uv` alone leaves the
+        # server running.
+        start_new_session=True,
     )
+    try:
+        _check_stdout(process, messages)
+    finally:
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait(timeout=10)
+
+
+def _check_stdout(
+    process: subprocess.Popen[str], messages: list[dict[str, Any]]
+) -> None:
     assert process.stdin is not None and process.stdout is not None
 
     # Read stdout on a thread: readline() blocks, and a deadline per line
