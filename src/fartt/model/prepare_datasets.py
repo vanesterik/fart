@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from fartt.features.calculate_magnitude import calculate_magnitude
+from fartt.features.calculate_candle_returns import calculate_candle_returns
 from fartt.features.sort_and_deduplicate import sort_and_deduplicate
 
 
@@ -24,7 +24,7 @@ def prepare_datasets(
     """
     Prepares the data for training, validation, and testing by loading the
     data from a CSV file, sorting and deduplicating it by timestamp,
-    calculating the magnitude of the target column, and splitting it into
+    calculating each candle's return (`calculate_candle_returns`), and splitting it into
     training, validation, and test sets.
 
     Parameters
@@ -52,7 +52,7 @@ def prepare_datasets(
     """
     df = pl.read_csv(data_filepath)
     df = sort_and_deduplicate(df)
-    df = calculate_magnitude(df)
+    df = calculate_candle_returns(df)
     df = df.fill_nan(None).drop_nulls()
 
     data = df[target].to_numpy().astype(np.float32)

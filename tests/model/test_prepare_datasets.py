@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from fartt.constants import CLOSE, MAGNITUDE, TIMESTAMP
+from fartt.constants import CANDLE_RETURN, CLOSE, TIMESTAMP
 from fartt.model.prepare_datasets import prepare_datasets, train_test_split
 
 CSV_HEADER = f"{TIMESTAMP},{CLOSE}\n"
@@ -55,7 +55,7 @@ def test_prepare_datasets_returns_windowed_split(tmp_path: Path) -> None:
 
     x_train, y_train, x_val, y_val, x_test, y_test = prepare_datasets(
         data_filepath=filepath,
-        target=MAGNITUDE,
+        target=CANDLE_RETURN,
         num_lags=5,
         train_size=0.6,
         val_size=0.2,
@@ -85,9 +85,9 @@ def test_prepare_datasets_deduplicates_and_sorts_candles(tmp_path: Path) -> None
     tampered_rows = [rows[0], rows[2], duplicate, rows[1], *rows[3:]]
     tampered_path.write_text(header + "".join(tampered_rows))
 
-    clean = prepare_datasets(data_filepath=clean_path, target=MAGNITUDE, num_lags=5)
+    clean = prepare_datasets(data_filepath=clean_path, target=CANDLE_RETURN, num_lags=5)
     tampered = prepare_datasets(
-        data_filepath=tampered_path, target=MAGNITUDE, num_lags=5
+        data_filepath=tampered_path, target=CANDLE_RETURN, num_lags=5
     )
 
     clean_total = clean[0].shape[0] + clean[2].shape[0] + clean[4].shape[0]
@@ -99,5 +99,5 @@ def test_prepare_datasets_deduplicates_and_sorts_candles(tmp_path: Path) -> None
 def test_prepare_datasets_missing_csv_raises(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         prepare_datasets(
-            data_filepath=tmp_path / "missing.csv", target=MAGNITUDE, num_lags=5
+            data_filepath=tmp_path / "missing.csv", target=CANDLE_RETURN, num_lags=5
         )

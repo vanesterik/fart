@@ -51,9 +51,9 @@ def predicted_vs_actual_scatter(y_test: np.ndarray, y_pred: np.ndarray) -> None:
     ax.set_xlim(-limit, limit)  # pyright: ignore[reportUnknownMemberType] -- Axes.set_xlim's **kwargs is untyped upstream
     ax.set_ylim(-limit, limit)  # pyright: ignore[reportUnknownMemberType] -- Axes.set_ylim's **kwargs is untyped upstream
     ax.set_aspect("equal", adjustable="box")  # pyright: ignore[reportUnknownMemberType] -- Axes.set_aspect's **kwargs is untyped upstream
-    ax.set_xlabel("Actual Magnitude")  # pyright: ignore[reportUnknownMemberType] -- Axes.set_xlabel's **kwargs is untyped upstream
-    ax.set_ylabel("Predicted Magnitude")  # pyright: ignore[reportUnknownMemberType] -- Axes.set_ylabel's **kwargs is untyped upstream
-    ax.set_title("Predicted vs. Actual Magnitude (Test Set)")  # pyright: ignore[reportUnknownMemberType] -- Axes.set_title's **kwargs is untyped upstream
+    ax.set_xlabel("Actual Return")  # pyright: ignore[reportUnknownMemberType] -- Axes.set_xlabel's **kwargs is untyped upstream
+    ax.set_ylabel("Predicted Return")  # pyright: ignore[reportUnknownMemberType] -- Axes.set_ylabel's **kwargs is untyped upstream
+    ax.set_title("Predicted vs. Actual Return (Test Set)")  # pyright: ignore[reportUnknownMemberType] -- Axes.set_title's **kwargs is untyped upstream
     ax.legend(  # pyright: ignore[reportUnknownMemberType] -- Axes.legend's **kwargs is untyped upstream
         handles=[
             Line2D(
