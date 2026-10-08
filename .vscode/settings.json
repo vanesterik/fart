@@ -1,13 +1,10 @@
 {
     "cSpell.words": [
-        "APIKEY",
-        "APISECRET",
         "Backtest",
         "BBANDS",
         "bitvavo",
         "Bollinger",
-        "MACD",
-        "Renderable"
+        "MACD"
     ],
     "ruff.importStrategy": "fromEnvironment"
 }
