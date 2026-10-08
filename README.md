@@ -21,7 +21,7 @@ This is a solo research project. It started as a self-built trading platform (a 
 The work is delivered in epics, in this order:
 
 1. **[Server Foundation](https://github.com/vanesterik/fartt/issues/44)**, done: the exchange layer (ccxt, Bitvavo by default), the candle cache, and the MCP server with `get_candles`.
-2. **[Forecast Tools](https://github.com/vanesterik/fartt/issues/45)**: `get_forecast`, `analyze_forecast` and `get_model_info`, first backed by a naive baseline.
+2. **[Forecast Tools](https://github.com/vanesterik/fartt/issues/45)**, done: `get_forecast`, `analyze_forecast` and `get_model_info`, first backed by a naive baseline.
 3. **[Paper Trading & Risk](https://github.com/vanesterik/fartt/issues/46)**: the portfolio, server-enforced risk limits, simulated orders and stop-losses, a kill switch and a decision journal, with orders approved by hand.
 4. **[Model Selection](https://github.com/vanesterik/fartt/issues/47)**: screening the MLP, CNN, GRU, N-BEATS and a time-series transformer, plus foundation models, against naive baselines, then a walk-forward backtest after costs.
 5. **[Unattended Operation](https://github.com/vanesterik/fartt/issues/48)**: paper trading without approvals.
