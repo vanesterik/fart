@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from fartt.candle_cache import CandleCache, interval_to_ms
 from fartt.exchange import Candle, ExchangeUnavailable
-from fartt.forecast import Forecaster, NotEnoughCandles, forecast
+from fartt.forecast import Forecaster, NotEnoughCandles, Settings, analyze, forecast
 
 # Claude Code caps MCP tool output at about 25k tokens by default, and
 # numbers cost roughly one token per three characters. 200 compact rows stay
@@ -22,8 +22,17 @@ INSTRUCTIONS = (
     "Fartt's trading server. It serves one market and one candle interval, "
     "fixed when the server starts. Every trading cycle starts with "
     "get_candles, which updates the cache from the exchange, then "
-    "get_forecast for the next candle's expected return. If is_current is "
-    "false the data is stale: read the warning and treat the cycle as a hold."
+    "get_forecast for the next candle's expected return, and "
+    "analyze_forecast for that return after trading costs, whether it clears "
+    "the entry or exit threshold, and the model's recent hit rate. Returns, "
+    "costs and rates are fractions: 0.004 means 0.4%. If is_current is false "
+    "the data is stale: read the warning and treat the cycle as a hold."
+)
+
+STALE_FORECAST_WARNING = (
+    "The newest cached candle is older than the most recently closed period, "
+    "so this forecast may be stale. Call get_candles first to update the "
+    "cache; if it also reports is_current: false, treat this cycle as a hold."
 )
 
 Row = tuple[str, float, float, float, float, float]
@@ -84,6 +93,58 @@ class ForecastResult(BaseModel):
     )
 
 
+class AnalysisResult(BaseModel):
+    market: str
+    interval: str
+    model: str = Field(description="Name of the model that made the forecast.")
+    applies_to: str = Field(
+        description="Open time of the candle being forecast, ISO 8601 in UTC."
+    )
+    based_on: str = Field(
+        description="Open time of the newest candle the forecast used, ISO 8601 in UTC."
+    )
+    is_current: bool = Field(
+        description=(
+            "True when the forecast is based on the most recently closed "
+            "period. False means the cache is behind; see warning."
+        )
+    )
+    warning: str | None = Field(
+        default=None, description="Why the forecast may be stale, if it may be."
+    )
+    expected_return: float = Field(
+        description="Expected return of the next candle, as a fraction: 0.004 means +0.4%."
+    )
+    round_trip_cost: float = Field(
+        description="Fees and slippage of buying and later selling, as a fraction."
+    )
+    expected_return_after_costs: float = Field(
+        description=(
+            "expected_return minus round_trip_cost: the expected result of "
+            "buying now and selling one candle later, as a fraction."
+        )
+    )
+    threshold: float = Field(
+        description="Minimum expected return to act on, as a fraction."
+    )
+    clears_entry_threshold: bool = Field(
+        description="expected_return > threshold: a long position would be worth opening."
+    )
+    clears_exit_threshold: bool = Field(
+        description="expected_return < -threshold: an open position would be worth closing."
+    )
+    hit_rate: float | None = Field(
+        description=(
+            "Share of recent candles whose direction the model predicted "
+            "correctly, out-of-sample, as a fraction: 0.55 means 55%. Null when "
+            "no candle could be scored."
+        )
+    )
+    hit_rate_candles: int = Field(
+        description="How many recent candles the hit rate scored."
+    )
+
+
 def _iso(timestamp_ms: int) -> str:
     return datetime.fromtimestamp(timestamp_ms / 1000, UTC).isoformat()
 
@@ -94,7 +155,11 @@ def _row(candle: Candle) -> Row:
 
 
 def build_server(
-    cache: CandleCache, market: str, interval: str, forecaster: Forecaster
+    cache: CandleCache,
+    market: str,
+    interval: str,
+    forecaster: Forecaster,
+    settings: Settings,
 ) -> MCPServer:
     """
     Build the MCP server for one market and interval, backed by `cache`.
@@ -105,6 +170,26 @@ def build_server(
     """
     interval_ms = interval_to_ms(interval)
     server = MCPServer("fartt", instructions=INSTRUCTIONS)
+
+    def read_candles(tool: str, count: int) -> list[Candle]:
+        try:
+            return cache.latest(count)
+        except OSError as error:
+            logger.error(f"{tool}: {error}")
+            raise ToolError(
+                f"Couldn't read the candle cache at {cache.filepath}: {error}. "
+                "Retrying won't help until the operator fixes the file or its "
+                "folder."
+            ) from error
+
+    def too_little_history(error: NotEnoughCandles) -> ToolError:
+        return ToolError(
+            f"{forecaster.name} needs {error.needed} closed {market} "
+            f"{interval} candles and the cache holds {error.got}. Call "
+            "get_candles to update it, or have the operator fill it with "
+            f"`uv run fartt download --market {market} --interval {interval}`; "
+            "otherwise retry next cycle."
+        )
 
     @server.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
     def get_candles(
@@ -193,36 +278,14 @@ def build_server(
         interval from the cached candles. Call get_candles first: this tool
         reads the cache and never contacts the exchange.
         """
-        try:
-            candles = cache.latest(forecaster.required_candles)
-        except OSError as error:
-            logger.error(f"get_forecast: {error}")
-            raise ToolError(
-                f"Couldn't read the candle cache at {cache.filepath}: {error}. "
-                "Retrying won't help until the operator fixes the file or its "
-                "folder."
-            ) from error
-
+        candles = read_candles("get_forecast", forecaster.required_candles)
         try:
             result = forecast(forecaster, candles, interval_ms)
         except NotEnoughCandles as error:
-            raise ToolError(
-                f"{forecaster.name} needs {error.needed} closed {market} "
-                f"{interval} candles and the cache holds {error.got}. Call "
-                "get_candles to update it, or have the operator fill it with "
-                f"`uv run fartt download --market {market} --interval {interval}`; "
-                "otherwise retry next cycle."
-            ) from error
+            raise too_little_history(error) from error
 
         is_current = result.based_on_ms == cache.newest_closed_ms()
-        warning = None
-        if not is_current:
-            warning = (
-                "The newest cached candle is older than the most recently "
-                "closed period, so this forecast may be stale. Call get_candles "
-                "first to update the cache; if it also reports is_current: "
-                "false, treat this cycle as a hold."
-            )
+        warning = None if is_current else STALE_FORECAST_WARNING
 
         logger.info(
             f"get_forecast: {result.model} expects {result.expected_return:+.4%} "
@@ -237,6 +300,53 @@ def build_server(
             based_on=_iso(result.based_on_ms),
             is_current=is_current,
             warning=warning,
+        )
+
+    @server.tool(
+        annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False)
+    )
+    def analyze_forecast() -> AnalysisResult:
+        """
+        Analyse the next candle's forecast after trading costs: the expected
+        return after a round trip's fees and slippage, whether it clears the
+        entry or exit threshold, and the model's recent directional hit rate.
+        Call get_candles first: this tool reads the cache and never contacts
+        the exchange.
+        """
+        candles = read_candles(
+            "analyze_forecast", forecaster.required_candles + settings.hit_rate_window
+        )
+        try:
+            analysis = analyze(forecaster, candles, interval_ms, settings)
+        except NotEnoughCandles as error:
+            raise too_little_history(error) from error
+
+        is_current = analysis.based_on_ms == cache.newest_closed_ms()
+        hit_rate = "n/a" if analysis.hit_rate is None else f"{analysis.hit_rate:.0%}"
+        logger.info(
+            f"analyze_forecast: {analysis.model} expects "
+            f"{analysis.expected_return:+.4%}, "
+            f"{analysis.expected_return_after_costs:+.4%} after costs, "
+            f"entry={analysis.clears_entry_threshold} "
+            f"exit={analysis.clears_exit_threshold}, hit rate {hit_rate} over "
+            f"{analysis.hit_rate_candles} candles, current={is_current}"
+        )
+        return AnalysisResult(
+            market=market,
+            interval=interval,
+            model=analysis.model,
+            applies_to=_iso(analysis.applies_to_ms),
+            based_on=_iso(analysis.based_on_ms),
+            is_current=is_current,
+            warning=None if is_current else STALE_FORECAST_WARNING,
+            expected_return=analysis.expected_return,
+            round_trip_cost=analysis.round_trip_cost,
+            expected_return_after_costs=analysis.expected_return_after_costs,
+            threshold=analysis.threshold,
+            clears_entry_threshold=analysis.clears_entry_threshold,
+            clears_exit_threshold=analysis.clears_exit_threshold,
+            hit_rate=analysis.hit_rate,
+            hit_rate_candles=analysis.hit_rate_candles,
         )
 
     return server

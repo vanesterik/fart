@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 
 from fartt import cli
-from fartt.forecast import RepeatLastReturn
+from fartt.forecast import RepeatLastReturn, Settings
 from tests.fakes import HOUR_MS, FakeExchange, candle
 
 
@@ -36,13 +36,14 @@ def served(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     built: dict[str, Any] = {}
 
     def fake_build_server(
-        cache: Any, market: str, interval: str, forecaster: Any
+        cache: Any, market: str, interval: str, forecaster: Any, settings: Any
     ) -> FakeServer:
         built.update(
             cache=cache,
             market=market,
             interval=interval,
             forecaster=forecaster,
+            settings=settings,
             server=FakeServer(),
         )
         return built["server"]
@@ -141,7 +142,10 @@ def test_download_exits_cleanly_when_the_exchange_is_unreachable(
 
 
 def test_serve_runs_the_server_for_the_configured_market(
-    fake_exchange: FakeExchange, served: dict[str, Any], tmp_path: Path
+    fake_exchange: FakeExchange,
+    served: dict[str, Any],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     cli.main(
         [
@@ -159,6 +163,8 @@ def test_serve_runs_the_server_for_the_configured_market(
     assert served["interval"] == "1h"
     assert served["cache"].filepath == tmp_path / "BTC-EUR-1h.csv"
     assert served["forecaster"] == RepeatLastReturn()
+    assert served["settings"] == Settings()
+    assert "fee 0.25% per leg" in capsys.readouterr().err
     assert served["server"].ran
 
 
@@ -209,3 +215,67 @@ def test_download_rejects_an_offered_interval_the_cache_cannot_handle(
     error = capsys.readouterr().err
     assert "interval '1w'" in error
     assert "Traceback" not in error
+
+
+def test_serve_passes_the_analysis_options(
+    fake_exchange: FakeExchange, served: dict[str, Any], tmp_path: Path
+) -> None:
+    cli.main(
+        [
+            "serve",
+            "--assets-dir",
+            str(tmp_path),
+            "--interval",
+            "1h",
+            "--fee",
+            "0.001",
+            "--slippage",
+            "0",
+            "--threshold",
+            "0.01",
+            "--hit-rate-window",
+            "50",
+        ]
+    )
+
+    assert served["settings"] == Settings(
+        fee=0.001, slippage=0.0, threshold=0.01, hit_rate_window=50
+    )
+
+
+@pytest.mark.parametrize(
+    ("option", "value"),
+    [
+        ("--fee", "-0.001"),
+        ("--fee", "nan"),
+        ("--slippage", "inf"),
+        ("--threshold", "-0.01"),
+        ("--hit-rate-window", "0"),
+    ],
+)
+def test_serve_rejects_nonsense_analysis_options(
+    fake_exchange: FakeExchange,
+    served: dict[str, Any],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    option: str,
+    value: str,
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main(["serve", "--assets-dir", str(tmp_path), option, value])
+
+    assert exit_info.value.code == 2
+    assert option in capsys.readouterr().err
+    assert not served
+
+
+def test_serve_warns_about_a_threshold_below_the_round_trip_cost(
+    fake_exchange: FakeExchange,
+    served: dict[str, Any],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    cli.main(["serve", "--assets-dir", str(tmp_path), "--threshold", "0.001"])
+
+    assert "below the round-trip cost" in capsys.readouterr().err
+    assert served["server"].ran
