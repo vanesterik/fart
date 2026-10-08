@@ -24,9 +24,12 @@ INSTRUCTIONS = (
     "get_candles, which updates the cache from the exchange, then "
     "get_forecast for the next candle's expected return, and "
     "analyze_forecast for that return after trading costs, whether it clears "
-    "the entry or exit threshold, and the model's recent hit rate. Returns, "
-    "costs and rates are fractions: 0.004 means 0.4%. If is_current is false "
-    "the data is stale: read the warning and treat the cycle as a hold."
+    "the entry or exit threshold, and the model's recent hit rate. Call "
+    "get_model_info to judge how far to trust the forecasts: which model "
+    "makes them, its training and metrics, and how fresh the data is. "
+    "Returns, costs and rates are fractions: 0.004 means 0.4%. If is_current "
+    "is false the data is stale: read the warning and treat the cycle as a "
+    "hold."
 )
 
 STALE_FORECAST_WARNING = (
@@ -142,6 +145,55 @@ class AnalysisResult(BaseModel):
     )
     hit_rate_candles: int = Field(
         description="How many recent candles the hit rate scored."
+    )
+
+
+class ModelInfoResult(BaseModel):
+    market: str
+    interval: str
+    name: str = Field(description="Name of the model behind the forecasts.")
+    kind: str = Field(
+        description='What sort of model, e.g. "naive baseline" or "trained model".'
+    )
+    required_candles: int = Field(
+        description="Closed candles the model reads for one forecast."
+    )
+    trained_through: str | None = Field(
+        description=(
+            "Open time of the last candle in the training data, ISO 8601 in "
+            "UTC: the data cutoff, not the training date. analyze_forecast's "
+            "hit rate only scores later candles. Null for an untrained model."
+        )
+    )
+    trained_at: str | None = Field(
+        description=(
+            "When the model was trained, ISO 8601 in UTC. Null until a trained "
+            "model is selected."
+        )
+    )
+    metrics: dict[str, float] | None = Field(
+        description=(
+            "The model's screening and backtest metrics. Null until a trained "
+            "model is selected."
+        )
+    )
+    note: str | None = Field(
+        default=None, description="What's missing or stale, and what to do about it."
+    )
+    newest_cached: str | None = Field(
+        description=(
+            "Open time of the newest cached candle, ISO 8601 in UTC. Null when "
+            "the cache is empty."
+        )
+    )
+    newest_closed: str = Field(
+        description="Open time of the most recently closed period, ISO 8601 in UTC."
+    )
+    is_current: bool = Field(
+        description=(
+            "True when the newest cached candle is the most recently closed "
+            "period, so the next forecast uses current data."
+        )
     )
 
 
@@ -347,6 +399,65 @@ def build_server(
             clears_exit_threshold=analysis.clears_exit_threshold,
             hit_rate=analysis.hit_rate,
             hit_rate_candles=analysis.hit_rate_candles,
+        )
+
+    @server.tool(
+        annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False)
+    )
+    def get_model_info() -> ModelInfoResult:
+        """
+        Describe the model behind the forecasts (name, kind, input window,
+        training and metrics) and how fresh the cached data is, to judge how
+        far to trust a forecast. Reads the cache only, and answers even when
+        it is empty.
+        """
+        newest = read_candles("get_model_info", 1)
+        newest_closed_ms = cache.newest_closed_ms()
+        is_current = bool(newest) and newest[-1].timestamp == newest_closed_ms
+        trained_through_ms = forecaster.trained_through_ms
+
+        # The Forecaster Protocol has no training date or metrics yet: epic B
+        # adds them with its trained model. trained_through_ms is the training
+        # data's cutoff, not the date it was trained.
+        notes = [
+            (
+                f"{forecaster.name} is a {forecaster.kind} with no training "
+                "date or screening and backtest metrics yet; they are filled "
+                "in once a trained model is selected (epic B)."
+            )
+        ]
+        if not newest:
+            notes.append(
+                "The candle cache is empty: call get_candles to fill it, or have "
+                "the operator run "
+                f"`uv run fartt download --market {market} --interval {interval}`."
+            )
+        elif not is_current:
+            notes.append(
+                "The newest cached candle is older than the most recently "
+                "closed period: call get_candles to update the cache before "
+                "forecasting."
+            )
+
+        logger.info(
+            f"get_model_info: {forecaster.name} ({forecaster.kind}) for "
+            f"{market} {interval}, current={is_current}"
+        )
+        return ModelInfoResult(
+            market=market,
+            interval=interval,
+            name=forecaster.name,
+            kind=forecaster.kind,
+            required_candles=forecaster.required_candles,
+            trained_through=(
+                None if trained_through_ms is None else _iso(trained_through_ms)
+            ),
+            trained_at=None,
+            metrics=None,
+            note=" ".join(notes),
+            newest_cached=_iso(newest[-1].timestamp) if newest else None,
+            newest_closed=_iso(newest_closed_ms),
+            is_current=is_current,
         )
 
     return server

@@ -21,13 +21,13 @@ This is a solo research project. It started as a self-built trading platform (a 
 The work is delivered in epics, in this order:
 
 1. **[Server Foundation](https://github.com/vanesterik/fartt/issues/44)**, done: the exchange layer (ccxt, Bitvavo by default), the candle cache, and the MCP server with `get_candles`.
-2. **[Forecast Tools](https://github.com/vanesterik/fartt/issues/45)**: `get_forecast`, `analyze_forecast` and `get_model_info`, first backed by a naive baseline.
+2. **[Forecast Tools](https://github.com/vanesterik/fartt/issues/45)**, done: `get_forecast`, `analyze_forecast` and `get_model_info`, first backed by a naive baseline.
 3. **[Paper Trading & Risk](https://github.com/vanesterik/fartt/issues/46)**: the portfolio, server-enforced risk limits, simulated orders and stop-losses, a kill switch and a decision journal, with orders approved by hand.
 4. **[Model Selection](https://github.com/vanesterik/fartt/issues/47)**: screening the MLP, CNN, GRU, N-BEATS and a time-series transformer, plus foundation models, against naive baselines, then a walk-forward backtest after costs.
 5. **[Unattended Operation](https://github.com/vanesterik/fartt/issues/48)**: paper trading without approvals.
 6. **[Live Trading](https://github.com/vanesterik/fartt/issues/49)**: a small live experiment, first with approvals.
 
-What works today: `fartt download` fills a local candle cache, and the candidate models are trained and evaluated in the notebooks. A Claude Code session in this directory can fetch the latest candles through `get_candles`, a forecast of the next candle's return through `get_forecast`, and that forecast after trading costs through `analyze_forecast`.
+What works today: `fartt download` fills a local candle cache, and the candidate models are trained and evaluated in the notebooks. A Claude Code session in this directory can fetch the latest candles through `get_candles`, a forecast of the next candle's return through `get_forecast`, that forecast after trading costs through `analyze_forecast`, and what's behind it through `get_model_info`.
 
 ## Installation
 
@@ -63,7 +63,7 @@ Run `uv run fartt --help` for the full set of options. What comes next is in the
 
 ## How a trading cycle works
 
-Once the later epics land, a `/loop` in a Claude Code session runs one cycle per candle interval. The agent fetches the latest candles, gets a forecast and its analysis after costs, checks the portfolio and the risk limits, then holds or proposes an order, and records its decision with its reasoning either way. The server enforces the risk limits, not the agent: it rejects any order that breaks them, and the agent can read the limits but not change them. Today `get_candles`, `get_forecast` and `analyze_forecast` exist; the other tools are planned (see [PRD](docs/product/mcp-trading-agent-prd.md) §5 and §6).
+Once the later epics land, a `/loop` in a Claude Code session runs one cycle per candle interval. The agent fetches the latest candles, gets a forecast and its analysis after costs, checks the portfolio and the risk limits, then holds or proposes an order, and records its decision with its reasoning either way. The server enforces the risk limits, not the agent: it rejects any order that breaks them, and the agent can read the limits but not change them. Today `get_candles`, `get_forecast`, `analyze_forecast` and `get_model_info` exist; the other tools are planned (see [PRD](docs/product/mcp-trading-agent-prd.md) §5 and §6).
 
 ```mermaid
 sequenceDiagram
@@ -78,6 +78,7 @@ sequenceDiagram
     Server-->>Agent: latest candles, is_current
     Agent->>Server: get_forecast
     Agent->>Server: analyze_forecast
+    Agent->>Server: get_model_info
     Agent->>Server: get_portfolio, get_risk_status (planned)
     alt the forecast clears the threshold after costs
         Agent->>Server: propose_order, place_order (planned)
@@ -137,7 +138,7 @@ The project follows the [cookiecutter data science project template](https://dri
         │   └── analysis.py        <- Settings, Analysis, analyze().
         │
         ├── server         <- The MCP server.
-        │   └── server.py      <- build_server() and the get_candles, get_forecast and analyze_forecast tools.
+        │   └── server.py      <- build_server() and the four tools.
         │
         ├── features       <- Feature engineering over Polars DataFrames.
         │   ├── calculate_technical_indicators.py
