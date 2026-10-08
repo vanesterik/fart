@@ -3,8 +3,8 @@ import numpy.typing as npt
 
 
 def calculate_trade_returns(
-    magnitudes: npt.ArrayLike,
-    predicted_magnitudes: npt.ArrayLike | None = None,
+    candle_returns: npt.ArrayLike,
+    predicted_candle_returns: npt.ArrayLike | None = None,
     initial_capital: float = 500,
     cost_pct: float = 0.0025,
     slippage_pct: float = 0.0,
@@ -14,33 +14,33 @@ def calculate_trade_returns(
 ) -> tuple[list[float], list[float]]:
     """
     Backtest a long-only trading strategy over a series of signed
-    percent-change magnitudes (see `calculate_magnitude`), deciding entry and
-    exit off `predicted_magnitudes` while realized profit/loss is always
-    computed from the actual `magnitudes`. Passing `predicted_magnitudes`
+    percent-change candle_returns (see `calculate_candle_returns`), deciding entry and
+    exit off `predicted_candle_returns` while realized profit/loss is always
+    computed from the actual `candle_returns`. Passing `predicted_candle_returns`
     lets a signal known one tick in advance act *before* that tick's move
     happens -- e.g. an upper-bound "perfect foresight" backtest via
-    `predicted_magnitudes = magnitude_series.shift(-1)`, so `predicted[i]`
-    equals the actual `magnitude[i + 1]` -- as opposed to omitting it, which
+    `predicted_candle_returns = candle_return_series.shift(-1)`, so `predicted[i]`
+    equals the actual `candle_returns[i + 1]` -- as opposed to omitting it, which
     reduces to a purely reactive rule that only ever acts on a move already
-    reflected in that same candle's `magnitudes` value.
+    reflected in that same candle's `candle_returns` value.
 
     A position is opened while flat when the signal clears `threshold`, and
     closed while in a position when the signal drops below `-threshold`,
     after `max_holding_period` candles, or once the price has moved against
     the position by more than `stop_loss_pct` since entry -- whichever comes
     first. Because a trade can span multiple candles, its holding-period
-    return is reconstructed by compounding the actual magnitudes between
+    return is reconstructed by compounding the actual candle_returns between
     entry and exit, then reduced by `cost_pct` and `slippage_pct` applied on
     both the entry and exit leg.
 
     Parameters
     ----------
-    - magnitudes (npt.ArrayLike): Signed percent-change magnitudes, one per
-      candle (e.g. `calculate_magnitude`'s `Magnitude` column) -- the actual
+    - candle_returns (npt.ArrayLike): Signed percent-change candle_returns, one per
+      candle (e.g. `calculate_candle_returns`'s `Return` column) -- the actual
       price path, always used to compute realized return. A leading `NaN`
       (no prior candle) is treated as no signal.
-    - predicted_magnitudes (Optional[npt.ArrayLike]): Signal used to decide
-      entry/exit, same length as `magnitudes`. If not passed, `magnitudes`
+    - predicted_candle_returns (Optional[npt.ArrayLike]): Signal used to decide
+      entry/exit, same length as `candle_returns`. If not passed, `candle_returns`
       itself is used as the signal (today's reactive behavior). A `NaN`
       (e.g. the trailing value of a `.shift(-1)` series) is treated as no
       signal.
@@ -60,7 +60,7 @@ def calculate_trade_returns(
       fires (or the data ends).
     - stop_loss_pct (Optional[float]): Maximum adverse price move, as a
       positive fraction, tolerated since entry before a position is
-      force-closed -- based on raw price movement (compounded magnitudes),
+      force-closed -- based on raw price movement (compounded candle_returns),
       before `cost_pct`/`slippage_pct` are applied. If not passed, no
       stop-loss is applied.
 
@@ -72,15 +72,15 @@ def calculate_trade_returns(
       `initial_capital` across trades in order.
 
     """
-    values = np.asarray(magnitudes, dtype=np.float64)
+    values = np.asarray(candle_returns, dtype=np.float64)
     signal_values = (
-        np.asarray(predicted_magnitudes, dtype=np.float64)
-        if predicted_magnitudes is not None
+        np.asarray(predicted_candle_returns, dtype=np.float64)
+        if predicted_candle_returns is not None
         else values
     )
     if signal_values.shape != values.shape:
         raise ValueError(
-            f"predicted_magnitudes must be the same length as magnitudes "
+            f"predicted_candle_returns must be the same length as candle_returns "
             f"({len(signal_values)} != {len(values)})."
         )
 
@@ -131,9 +131,9 @@ def _find_trade_boundaries(
             entry_index = i
             running_return = 0.0
         elif is_open:
-            magnitude = values[i]
-            if not np.isnan(magnitude):
-                running_return = (1 + running_return) * (1 + magnitude) - 1
+            candle_return = values[i]
+            if not np.isnan(candle_return):
+                running_return = (1 + running_return) * (1 + candle_return) - 1
 
             if (
                 signal < -threshold

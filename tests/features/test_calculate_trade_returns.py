@@ -6,9 +6,9 @@ from fartt.features.calculate_trade_returns import calculate_trade_returns
 
 
 def test_calculate_trade_returns_opens_and_closes_a_trade() -> None:
-    magnitudes = [float("nan"), 0.01, 0.02, -0.01]
+    candle_returns = [float("nan"), 0.01, 0.02, -0.01]
 
-    returns, profits = calculate_trade_returns(magnitudes, initial_capital=500)
+    returns, profits = calculate_trade_returns(candle_returns, initial_capital=500)
 
     gross_return = (1 + 0.02) * (1 - 0.01)
     cost_factor = (1 - 0.0025) ** 2
@@ -18,9 +18,9 @@ def test_calculate_trade_returns_opens_and_closes_a_trade() -> None:
 
 
 def test_calculate_trade_returns_no_trade_within_threshold() -> None:
-    magnitudes = [0.001, -0.002, 0.003]
+    candle_returns = [0.001, -0.002, 0.003]
 
-    returns, profits = calculate_trade_returns(magnitudes)
+    returns, profits = calculate_trade_returns(candle_returns)
 
     assert returns == []
     assert profits == []
@@ -42,9 +42,9 @@ def test_calculate_trade_returns_default_threshold_derives_from_costs() -> None:
 
 
 def test_calculate_trade_returns_force_closes_open_position_at_end() -> None:
-    magnitudes = [0.01, 0.02]
+    candle_returns = [0.01, 0.02]
 
-    returns, _ = calculate_trade_returns(magnitudes)
+    returns, _ = calculate_trade_returns(candle_returns)
 
     gross_return = 1 + 0.02
     cost_factor = (1 - 0.0025) ** 2
@@ -53,22 +53,22 @@ def test_calculate_trade_returns_force_closes_open_position_at_end() -> None:
 
 
 def test_calculate_trade_returns_slippage_reduces_return() -> None:
-    magnitudes = [0.02, -0.02]
+    candle_returns = [0.02, -0.02]
 
     returns_no_slippage, _ = calculate_trade_returns(
-        magnitudes, cost_pct=0.0025, slippage_pct=0.0, threshold=0.005
+        candle_returns, cost_pct=0.0025, slippage_pct=0.0, threshold=0.005
     )
     returns_with_slippage, _ = calculate_trade_returns(
-        magnitudes, cost_pct=0.0025, slippage_pct=0.001, threshold=0.005
+        candle_returns, cost_pct=0.0025, slippage_pct=0.001, threshold=0.005
     )
 
     assert returns_with_slippage[0] < returns_no_slippage[0]
 
 
 def test_calculate_trade_returns_profits_compound_but_returns_do_not() -> None:
-    magnitudes = [0.01, -0.01, 0.01, -0.01]
+    candle_returns = [0.01, -0.01, 0.01, -0.01]
 
-    returns, profits = calculate_trade_returns(magnitudes, initial_capital=500)
+    returns, profits = calculate_trade_returns(candle_returns, initial_capital=500)
 
     assert len(returns) == 2
     assert returns[0] == pytest.approx(returns[1])
@@ -77,9 +77,9 @@ def test_calculate_trade_returns_profits_compound_but_returns_do_not() -> None:
 
 
 def test_calculate_trade_returns_ignores_leading_nan() -> None:
-    magnitudes = [float("nan"), 0.01, -0.01]
+    candle_returns = [float("nan"), 0.01, -0.01]
 
-    returns, profits = calculate_trade_returns(magnitudes)
+    returns, profits = calculate_trade_returns(candle_returns)
 
     assert not math.isnan(returns[0])
     assert len(returns) == 1
@@ -87,10 +87,10 @@ def test_calculate_trade_returns_ignores_leading_nan() -> None:
 
 
 def test_calculate_trade_returns_max_holding_period_force_closes_early() -> None:
-    magnitudes = [0.01, 0.001, 0.001, 0.001, -0.01]
+    candle_returns = [0.01, 0.001, 0.001, 0.001, -0.01]
 
-    unlimited_returns, _ = calculate_trade_returns(magnitudes)
-    capped_returns, _ = calculate_trade_returns(magnitudes, max_holding_period=2)
+    unlimited_returns, _ = calculate_trade_returns(candle_returns)
+    capped_returns, _ = calculate_trade_returns(candle_returns, max_holding_period=2)
 
     gross_return = (1 + 0.001) * (1 + 0.001)
     cost_factor = (1 - 0.0025) ** 2
@@ -104,10 +104,10 @@ def test_calculate_trade_returns_max_holding_period_force_closes_early() -> None
 def test_calculate_trade_returns_max_holding_period_does_not_affect_earlier_close() -> (
     None
 ):
-    magnitudes = [0.01, 0.02, -0.01]
+    candle_returns = [0.01, 0.02, -0.01]
 
-    unlimited_returns, _ = calculate_trade_returns(magnitudes)
-    capped_returns, _ = calculate_trade_returns(magnitudes, max_holding_period=10)
+    unlimited_returns, _ = calculate_trade_returns(candle_returns)
+    capped_returns, _ = calculate_trade_returns(candle_returns, max_holding_period=10)
 
     assert capped_returns == pytest.approx(unlimited_returns)
 
@@ -118,10 +118,10 @@ def test_calculate_trade_returns_stop_loss_force_closes_before_signal() -> None:
     # fire (-0.004 never drops below -threshold=-0.005). Two big positive
     # candles follow, which re-trigger a fresh entry once the stopped-out
     # trade has freed up the position.
-    magnitudes = [0.01] + [-0.004] * 6 + [0.05, 0.05]
+    candle_returns = [0.01] + [-0.004] * 6 + [0.05, 0.05]
 
-    unstopped_returns, _ = calculate_trade_returns(magnitudes)
-    stopped_returns, _ = calculate_trade_returns(magnitudes, stop_loss_pct=0.02)
+    unstopped_returns, _ = calculate_trade_returns(candle_returns)
+    stopped_returns, _ = calculate_trade_returns(candle_returns, stop_loss_pct=0.02)
 
     gross_return = (1 - 0.004) ** 6
     cost_factor = (1 - 0.0025) ** 2
@@ -133,33 +133,41 @@ def test_calculate_trade_returns_stop_loss_force_closes_before_signal() -> None:
 
 
 def test_calculate_trade_returns_stop_loss_does_not_affect_earlier_close() -> None:
-    magnitudes = [0.01, -0.004, -0.004, -0.01]
+    candle_returns = [0.01, -0.004, -0.004, -0.01]
 
-    unstopped_returns, _ = calculate_trade_returns(magnitudes)
-    stopped_returns, _ = calculate_trade_returns(magnitudes, stop_loss_pct=0.02)
+    unstopped_returns, _ = calculate_trade_returns(candle_returns)
+    stopped_returns, _ = calculate_trade_returns(candle_returns, stop_loss_pct=0.02)
 
     assert stopped_returns == pytest.approx(unstopped_returns)
 
 
-def test_calculate_trade_returns_predicted_magnitudes_defaults_to_magnitudes() -> None:
-    magnitudes = [0.01, 0.02, -0.01]
+def test_calculate_trade_returns_predicted_candle_returns_defaults_to_candle_returns() -> (
+    None
+):
+    candle_returns = [0.01, 0.02, -0.01]
 
-    default_returns, default_profits = calculate_trade_returns(magnitudes)
-    explicit_returns, explicit_profits = calculate_trade_returns(magnitudes, magnitudes)
+    default_returns, default_profits = calculate_trade_returns(candle_returns)
+    explicit_returns, explicit_profits = calculate_trade_returns(
+        candle_returns, candle_returns
+    )
 
     assert explicit_returns == pytest.approx(default_returns)
     assert explicit_profits == pytest.approx(default_profits)
 
 
-def test_calculate_trade_returns_predicted_magnitudes_can_act_before_the_move() -> None:
-    # predicted_magnitudes[i] == magnitudes[i + 1] simulates a perfect
+def test_calculate_trade_returns_predicted_candle_returns_can_act_before_the_move() -> (
+    None
+):
+    # predicted_candle_returns[i] == candle_returns[i + 1] simulates a perfect
     # one-tick-ahead forecast: entry can trigger one tick earlier than the
     # reactive rule, capturing the spike at index 2 instead of missing it.
-    magnitudes = [0.001, 0.001, 0.05, 0.001, -0.01, 0.001]
-    predicted_magnitudes = [0.001, 0.05, 0.001, -0.01, 0.001, float("nan")]
+    candle_returns = [0.001, 0.001, 0.05, 0.001, -0.01, 0.001]
+    predicted_candle_returns = [0.001, 0.05, 0.001, -0.01, 0.001, float("nan")]
 
-    reactive_returns, _ = calculate_trade_returns(magnitudes)
-    oracle_returns, _ = calculate_trade_returns(magnitudes, predicted_magnitudes)
+    reactive_returns, _ = calculate_trade_returns(candle_returns)
+    oracle_returns, _ = calculate_trade_returns(
+        candle_returns, predicted_candle_returns
+    )
 
     cost_factor = (1 - 0.0025) ** 2
     expected_reactive_return = (1 + 0.001) * (1 - 0.01) * cost_factor - 1
@@ -174,16 +182,16 @@ def test_calculate_trade_returns_mismatched_predicted_length_raises() -> None:
         calculate_trade_returns([0.01, -0.01], [0.01, -0.01, 0.02])
 
 
-def test_calculate_trade_returns_predicted_magnitudes_trailing_nan_is_no_signal() -> (
+def test_calculate_trade_returns_predicted_candle_returns_trailing_nan_is_no_signal() -> (
     None
 ):
     # A NaN signal (e.g. the trailing value of a real .shift(-1) series)
     # doesn't crash and isn't treated as a close trigger -- the position
     # stays open and is force-closed at the end of the data as usual.
-    magnitudes = [0.01, -0.01]
-    predicted_magnitudes = [0.01, float("nan")]
+    candle_returns = [0.01, -0.01]
+    predicted_candle_returns = [0.01, float("nan")]
 
-    returns, _ = calculate_trade_returns(magnitudes, predicted_magnitudes)
+    returns, _ = calculate_trade_returns(candle_returns, predicted_candle_returns)
 
     cost_factor = (1 - 0.0025) ** 2
     expected_return = (1 - 0.01) * cost_factor - 1
