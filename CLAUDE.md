@@ -39,7 +39,7 @@ task lint                        # ruff format --check + ruff check, without wri
 task format                      # ruff format + ruff check --fix
 task typecheck                   # pyright (strict mode, src/ only — tests/ excluded)
 task test                        # pytest, offline
-task test:network                # the tests that call a live exchange API (deselected by default)
+task test:network                # live exchange tests + the end-to-end check of fartt serve over stdio (deselected by default)
 task pre-commit                  # the pre-commit hook's checks over staged files
 task outdated                    # direct dependencies with a newer release
 ```
@@ -63,6 +63,8 @@ uv run pyright                   # type check (strict mode, src/ only — tests/
 `fartt download` takes all arguments as options (no positionals): `--assets-dir` (default `assets`), `--exchange` (a ccxt exchange id, default `bitvavo`), `--market` (ccxt's format, e.g. `BTC/EUR`, default `BTC/EUR`) and `--interval` (one the exchange offers, e.g. `1m`, `30m`, `1h`, `4h`, `1d`; default `1d`). For example `uv run fartt download --market BTC/EUR --interval 1h`. Candles are public, so no API keys are needed. It goes through `fartt.candle_cache.CandleCache` and the exchange layer: the cache is one CSV per market and interval under `assets_dir` (file names keep the dash form, `BTC-EUR-1h.csv`), and each run appends only candles newer than the last cached one, after re-fetching that last one in case the exchange amended it. The CLI is plain `argparse` (`fartt/cli.py`: `build_parser()` and `main(argv)`); the agent never calls it, it calls the MCP server's tools.
 
 `fartt serve` takes the same four options (`--interval` defaults to `1h`) and runs the MCP server (`fartt/server/server.py`) over stdio. Claude Code starts it from the project's `.mcp.json`; the agent calls its `get_candles` tool. Both commands reject an unknown exchange, an interval the exchange doesn't offer or an unknown market with exit code 2; an unreachable exchange stops `download` with exit code 1, while `serve` starts anyway and serves cached candles flagged as stale.
+
+`tests/e2e/test_server_stdio.py` checks the server end to end: it starts `fartt serve` from `.mcp.json`'s command (with a temporary `--assets-dir` and `--interval 1d`), runs the trading cycle's tools in order, and asserts stdout carries only JSON-RPC, including anything written at shutdown. Each new tool joins it: add its name to `EXPECTED_TOOLS` and its call to the cycle test.
 
 There is no `fartt train` CLI command — it was removed, and the train/evaluate pipeline (`prepare_datasets` → `MLPBuilder`/`CNNBuilder` → `train_model` → `evaluate_model`) is currently only exercised from `notebooks/2.0-kve-data-analysis-mlp.ipynb` and `notebooks/2.1-kve-data-analysis-cnn.ipynb`, not wired into any CLI entrypoint. Each notebook loads the cached CSV for a market/interval, sorts/deduplicates it, computes `Magnitude`, builds sliding lag windows via a chronological 60/20/20 train/val/test split (`train_size`/`val_size` on `prepare_datasets`), builds its model (`MLPBuilder(config).build()` or `CNNBuilder(config).build()`), fits it with `train_model` — a single fit against the validation split, no cross-validation (see "Current state" above) — and logs directional accuracy/RMSE/MAE via `evaluate_model`. Neither notebook calls `persist_model`, so no checkpoint is saved from this path currently; `predict_model.py` remains an empty stub regardless.
 
