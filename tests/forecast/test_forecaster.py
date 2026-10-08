@@ -1,5 +1,9 @@
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+
 import pytest
 
+from fartt.exchange import Candle
 from fartt.forecast import Forecast, NotEnoughCandles, RepeatLastReturn, forecast
 from tests.fakes import HOUR_MS, candle
 
@@ -17,14 +21,42 @@ def test_forecast_applies_to_the_candle_after_the_newest() -> None:
     )
 
 
-def test_forecast_uses_only_the_newest_required_candles() -> None:
-    # The first close would distort the result if it were used.
-    candles = [candle(0, close=1.0)] + [candle(h, close=100.0) for h in range(1, 200)]
+@dataclass(frozen=True)
+class SpyForecaster:
+    """Records the candles `predict` receives."""
 
-    result = forecast(RepeatLastReturn(), candles, interval_ms=HOUR_MS)
+    received: list[Sequence[Candle]] = field(default_factory=list)
+    name: str = "spy"
+    kind: str = "test double"
+    required_candles: int = 3
+    trained_through_ms: int | None = None
 
-    assert result.expected_return == 0.0
+    def predict(self, candles: Sequence[Candle]) -> float:
+        self.received.append(candles)
+        return 0.0
+
+
+def test_forecast_passes_predict_exactly_the_newest_required_candles() -> None:
+    spy = SpyForecaster()
+    candles = [candle(h) for h in range(200)]
+
+    result = forecast(spy, candles, interval_ms=HOUR_MS)
+
+    assert [c.timestamp for c in spy.received[0]] == [
+        197 * HOUR_MS,
+        198 * HOUR_MS,
+        199 * HOUR_MS,
+    ]
     assert result.based_on_ms == 199 * HOUR_MS
+
+
+@pytest.mark.parametrize("required", [0, -1])
+def test_forecast_rejects_a_forecaster_that_needs_no_candles(required: int) -> None:
+    # A forecast is based on its newest candle, so it needs at least one.
+    spy = SpyForecaster(required_candles=required)
+
+    with pytest.raises(ValueError, match="at least 1"):
+        forecast(spy, [candle(h) for h in range(5)], interval_ms=HOUR_MS)
 
 
 def test_forecast_with_exactly_the_required_candles() -> None:
