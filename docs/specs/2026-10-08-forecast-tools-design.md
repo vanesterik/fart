@@ -18,7 +18,7 @@ The epic also turns the throwaway stdio checks used for #52 into a committed end
 
 - **Settings are `fartt serve` options with defaults** (`--fee`, `--slippage`, `--threshold`, `--hit-rate-window`). `.mcp.json` doesn't change unless the defaults should. They can move into the config file that epic D introduces for the risk limits, which the agent must not be able to change.
 - **The forecast target stays the candle's simple return,** `close[t] / close[t-1] - 1` as a fraction (`0.004` = +0.4%). It's in the same units as profit and loss, fees and slippage, and `calculate_trade_returns` compounds it. Log returns differ negligibly at this scale (a 0.20% move is 0.1998% as a log return); a model that trains better on them can convert internally.
-- **It's called a return, not a magnitude.** "Magnitude" normally means size without sign, while here the sign carries the direction. The tools say `expected_return`, and #74 renames the code (`Magnitude` → `Return`, `calculate_magnitude` → `calculate_returns`, and so on) right after #69, before #70 builds on it.
+- **It's called a return, not a magnitude.** "Magnitude" normally means size without sign, while here the sign carries the direction. The tools say `expected_return`, and #74 renames the code to "candle return" (`MAGNITUDE` → `CANDLE_RETURN`, `calculate_magnitude` → `calculate_candle_returns`, and so on; the full mapping is in the table below) right after #69, before #70 builds on it.
 
   The #74 rename, in full ("candle return", because plain "returns" already means per-trade results in `calculate_trade_returns`):
 

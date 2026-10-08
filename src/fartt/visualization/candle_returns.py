@@ -57,8 +57,10 @@ def plot_candle_returns(
     ax.set_title(  # pyright: ignore[reportUnknownMemberType] -- Axes.set_title's **kwargs is untyped upstream
         "Candle Returns (Signed Change of Close)"
     )
+    # "Candle Return", not the column name "Return": the per-trade chart
+    # (trade_returns.py) labels its axis "Return" too.
     ax.set_ylabel(  # pyright: ignore[reportUnknownMemberType] -- Axes.set_ylabel's **kwargs is untyped upstream
-        CANDLE_RETURN
+        "Candle Return"
     )
 
     plt.show()  # pyright: ignore[reportUnknownMemberType] -- pyplot.show is untyped upstream
