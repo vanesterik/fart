@@ -27,7 +27,7 @@ The work is delivered in epics, in this order:
 5. **[Unattended Operation](https://github.com/vanesterik/fartt/issues/48)**: paper trading without approvals.
 6. **[Live Trading](https://github.com/vanesterik/fartt/issues/49)**: a small live experiment, first with approvals.
 
-What works today: `fartt download` fills a local candle cache, a Claude Code session in this directory can fetch the latest candles through `get_candles`, and the candidate models are trained and evaluated in the notebooks.
+What works today: `fartt download` fills a local candle cache, a Claude Code session in this directory can fetch the latest candles through `get_candles` and a forecast of the next candle's return through `get_forecast`, and the candidate models are trained and evaluated in the notebooks.
 
 ## Installation
 
@@ -61,7 +61,7 @@ Run `uv run fartt --help` for the full set of options. What comes next is in the
 
 ## How a trading cycle works
 
-Once the later epics land, a `/loop` in a Claude Code session runs one cycle per candle interval. The agent fetches the latest candles, gets a forecast and its analysis after costs, checks the portfolio and the risk limits, then holds or proposes an order, and records its decision with its reasoning either way. The server enforces the risk limits, not the agent: it rejects any order that breaks them, and the agent can read the limits but not change them. Today only `get_candles` exists; the other tools are planned (see [PRD](docs/product/mcp-trading-agent-prd.md) §5 and §6).
+Once the later epics land, a `/loop` in a Claude Code session runs one cycle per candle interval. The agent fetches the latest candles, gets a forecast and its analysis after costs, checks the portfolio and the risk limits, then holds or proposes an order, and records its decision with its reasoning either way. The server enforces the risk limits, not the agent: it rejects any order that breaks them, and the agent can read the limits but not change them. Today `get_candles` and `get_forecast` exist; the other tools are planned (see [PRD](docs/product/mcp-trading-agent-prd.md) §5 and §6).
 
 ```mermaid
 sequenceDiagram
@@ -74,7 +74,8 @@ sequenceDiagram
     Agent->>Server: get_candles
     Server->>Exchange: fetch closed candles
     Server-->>Agent: latest candles, is_current
-    Agent->>Server: get_forecast, analyze_forecast (planned)
+    Agent->>Server: get_forecast
+    Agent->>Server: analyze_forecast (planned)
     Agent->>Server: get_portfolio, get_risk_status (planned)
     alt the forecast clears the threshold after costs
         Agent->>Server: propose_order, place_order (planned)
@@ -133,7 +134,7 @@ The project follows the [cookiecutter data science project template](https://dri
         │   └── baseline.py        <- RepeatLastReturn.
         │
         ├── server         <- The MCP server.
-        │   └── server.py      <- build_server() and the get_candles tool.
+        │   └── server.py      <- build_server() and the get_candles and get_forecast tools.
         │
         ├── features       <- Feature engineering over Polars DataFrames.
         │   ├── calculate_technical_indicators.py
