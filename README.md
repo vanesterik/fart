@@ -27,7 +27,7 @@ The work is delivered in epics, in this order:
 5. **[Unattended Operation](https://github.com/vanesterik/fartt/issues/48)**: paper trading without approvals.
 6. **[Live Trading](https://github.com/vanesterik/fartt/issues/49)**: a small live experiment, first with approvals.
 
-What works today: `fartt download` fills a local candle cache, a Claude Code session in this directory can fetch the latest candles through `get_candles` and a forecast of the next candle's return through `get_forecast`, and the candidate models are trained and evaluated in the notebooks.
+What works today: `fartt download` fills a local candle cache, a Claude Code session in this directory can fetch the latest candles through `get_candles` a forecast of the next candle's return through `get_forecast`, and that forecast after trading costs through `analyze_forecast`, and the candidate models are trained and evaluated in the notebooks.
 
 ## Installation
 
@@ -55,13 +55,15 @@ The MCP server exposes the cache to Claude Code. It's registered in `.mcp.json`,
 uv run fartt download --market BTC/EUR --interval 1h
 ```
 
+`fartt serve` also takes the analysis settings: `--fee`, `--slippage`, `--threshold` and `--hit-rate-window`, all fractions except the window (see `uv run fartt serve --help`).
+
 There is no `train` command. Training and evaluation run from the notebooks, one per candidate architecture: `notebooks/2.0-kve-data-analysis-mlp.ipynb` (MLP) and `notebooks/2.1-kve-data-analysis-cnn.ipynb` (CNN). Each loads the cached data, computes the target (the candle return: the signed percent change as a fraction), builds sliding lag windows with a chronological 60/20/20 train/val/test split, fits its model (see [Project Status](#project-status)), and reports directional accuracy, RMSE and MAE. Neither saves a checkpoint yet.
 
 Run `uv run fartt --help` for the full set of options. What comes next is in the [PRD](docs/product/mcp-trading-agent-prd.md) and the epics above.
 
 ## How a trading cycle works
 
-Once the later epics land, a `/loop` in a Claude Code session runs one cycle per candle interval. The agent fetches the latest candles, gets a forecast and its analysis after costs, checks the portfolio and the risk limits, then holds or proposes an order, and records its decision with its reasoning either way. The server enforces the risk limits, not the agent: it rejects any order that breaks them, and the agent can read the limits but not change them. Today `get_candles` and `get_forecast` exist; the other tools are planned (see [PRD](docs/product/mcp-trading-agent-prd.md) §5 and §6).
+Once the later epics land, a `/loop` in a Claude Code session runs one cycle per candle interval. The agent fetches the latest candles, gets a forecast and its analysis after costs, checks the portfolio and the risk limits, then holds or proposes an order, and records its decision with its reasoning either way. The server enforces the risk limits, not the agent: it rejects any order that breaks them, and the agent can read the limits but not change them. Today `get_candles`, `get_forecast` and `analyze_forecast` exist; the other tools are planned (see [PRD](docs/product/mcp-trading-agent-prd.md) §5 and §6).
 
 ```mermaid
 sequenceDiagram
@@ -75,7 +77,7 @@ sequenceDiagram
     Server->>Exchange: fetch closed candles
     Server-->>Agent: latest candles, is_current
     Agent->>Server: get_forecast
-    Agent->>Server: analyze_forecast (planned)
+    Agent->>Server: analyze_forecast
     Agent->>Server: get_portfolio, get_risk_status (planned)
     alt the forecast clears the threshold after costs
         Agent->>Server: propose_order, place_order (planned)
@@ -129,12 +131,13 @@ The project follows the [cookiecutter data science project template](https://dri
         │   ├── ccxt_exchange.py   <- Its ccxt implementation (Bitvavo by default).
         │   └── candle.py          <- The Candle type.
         │
-        ├── forecast       <- The Forecaster interface and the naive baseline.
+        ├── forecast       <- The Forecaster interface, the naive baseline and the analysis.
         │   ├── forecaster.py      <- Forecaster Protocol, Forecast, forecast().
-        │   └── baseline.py        <- RepeatLastReturn.
+        │   ├── baseline.py        <- RepeatLastReturn.
+        │   └── analysis.py        <- Settings, Analysis, analyze().
         │
         ├── server         <- The MCP server.
-        │   └── server.py      <- build_server() and the get_candles and get_forecast tools.
+        │   └── server.py      <- build_server() and the get_candles, get_forecast and analyze_forecast tools.
         │
         ├── features       <- Feature engineering over Polars DataFrames.
         │   ├── calculate_technical_indicators.py

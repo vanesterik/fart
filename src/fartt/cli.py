@@ -1,4 +1,5 @@
 import argparse
+import math
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -9,7 +10,7 @@ from tqdm import tqdm
 
 from fartt.candle_cache import DEFAULT_HISTORY_START_MS, CandleCache
 from fartt.exchange import CcxtExchange, ExchangeUnavailable
-from fartt.forecast import RepeatLastReturn
+from fartt.forecast import RepeatLastReturn, Settings
 from fartt.server import build_server
 
 LOG_FORMAT = (
@@ -42,6 +43,34 @@ def _add_cache_options(command: argparse.ArgumentParser, interval: str) -> None:
     )
 
 
+def _add_analysis_options(command: argparse.ArgumentParser) -> None:
+    command.add_argument(
+        "--fee",
+        type=float,
+        default=Settings.fee,
+        help="trading fee per leg, as a fraction: 0.0025 is 0.25%% (default: %(default)s)",
+    )
+    command.add_argument(
+        "--slippage",
+        type=float,
+        default=Settings.slippage,
+        help="slippage per leg, as a fraction (default: %(default)s)",
+    )
+    command.add_argument(
+        "--threshold",
+        type=float,
+        default=None,
+        help="minimum expected return to act on, as a fraction "
+        "(default: the round-trip cost, 2 * (fee + slippage))",
+    )
+    command.add_argument(
+        "--hit-rate-window",
+        type=int,
+        default=Settings.hit_rate_window,
+        help="recent candles the hit rate covers (default: %(default)s)",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fartt", description="Fartt: Financial Analysis Real Time Trading."
@@ -61,6 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run the MCP server for one market and interval over stdio.",
     )
     _add_cache_options(serve, interval="1h")
+    _add_analysis_options(serve)
     return parser
 
 
@@ -75,7 +105,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.command == "download":
         _download(parser, args.assets_dir, args.exchange, args.market, args.interval)
     elif args.command == "serve":
-        _serve(parser, args.assets_dir, args.exchange, args.market, args.interval)
+        settings = _settings(parser, args)
+        _serve(
+            parser, args.assets_dir, args.exchange, args.market, args.interval, settings
+        )
 
 
 def _open_cache(
@@ -132,6 +165,32 @@ def _open_cache(
         )
 
 
+def _settings(parser: argparse.ArgumentParser, args: argparse.Namespace) -> Settings:
+    # argparse's float accepts "nan" and "inf", so check finiteness too.
+    for option, value in (("--fee", args.fee), ("--slippage", args.slippage)):
+        if not (math.isfinite(value) and value >= 0):
+            parser.error(f"{option} must be a fraction >= 0, e.g. 0.0025 for 0.25%")
+    if args.threshold is not None and not (
+        math.isfinite(args.threshold) and args.threshold >= 0
+    ):
+        parser.error("--threshold must be a fraction >= 0, e.g. 0.007 for 0.7%")
+    if args.hit_rate_window < 1:
+        parser.error("--hit-rate-window must be at least 1")
+
+    settings = Settings(
+        fee=args.fee,
+        slippage=args.slippage,
+        threshold=args.threshold,
+        hit_rate_window=args.hit_rate_window,
+    )
+    if args.threshold is not None and args.threshold < settings.round_trip_cost:
+        logger.warning(
+            f"--threshold {args.threshold:.2%} is below the round-trip cost "
+            f"{settings.round_trip_cost:.2%}: entries can lose money on costs alone"
+        )
+    return settings
+
+
 def _download(
     parser: argparse.ArgumentParser,
     assets_dir: Path,
@@ -164,12 +223,21 @@ def _serve(
     exchange: str,
     market: str,
     interval: str,
+    settings: Settings,
 ) -> None:
     cache = _open_cache(
         parser, assets_dir, exchange, market, interval, require_exchange=False
     )
     logger.info(f"Serving {market} {interval} candles from {cache.filepath} over stdio")
-    build_server(cache, market, interval, RepeatLastReturn()).run()
+    threshold = (
+        settings.round_trip_cost if settings.threshold is None else settings.threshold
+    )
+    logger.info(
+        f"Analysis settings: fee {settings.fee:.2%} per leg, slippage "
+        f"{settings.slippage:.2%} per leg, threshold {threshold:.2%}, "
+        f"hit rate over {settings.hit_rate_window} candles"
+    )
+    build_server(cache, market, interval, RepeatLastReturn(), settings).run()
 
 
 if __name__ == "__main__":

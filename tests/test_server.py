@@ -5,7 +5,7 @@ import pytest
 from mcp import Client
 
 from fartt.candle_cache import CandleCache
-from fartt.forecast import RepeatLastReturn
+from fartt.forecast import RepeatLastReturn, Settings
 from fartt.server import build_server
 from tests.fakes import HOUR_MS, FakeExchange, candle
 
@@ -27,13 +27,22 @@ def _cache(exchange: FakeExchange, tmp_path: Path, batch_limit: int = 2) -> Cand
     )
 
 
-def _server(cache: CandleCache) -> Any:
-    return build_server(cache, "BTC/EUR", "1h", RepeatLastReturn())
+def _server(cache: CandleCache, settings: Settings | None = None) -> Any:
+    return build_server(
+        cache, "BTC/EUR", "1h", RepeatLastReturn(), settings or Settings()
+    )
 
 
 async def _get_forecast(cache: CandleCache) -> Any:
     async with Client(_server(cache)) as client:
         return await client.call_tool("get_forecast", {})
+
+
+async def _analyze_forecast(
+    cache: CandleCache, settings: Settings | None = None
+) -> Any:
+    async with Client(_server(cache, settings)) as client:
+        return await client.call_tool("analyze_forecast", {})
 
 
 async def _get_candles(cache: CandleCache, **arguments: Any) -> Any:
@@ -166,7 +175,11 @@ async def test_server_offers_get_candles_as_a_read_only_tool(tmp_path: Path) -> 
     async with Client(_server(cache)) as client:
         tools = (await client.list_tools()).tools
 
-    assert [tool.name for tool in tools] == ["get_candles", "get_forecast"]
+    assert [tool.name for tool in tools] == [
+        "get_candles",
+        "get_forecast",
+        "analyze_forecast",
+    ]
     assert tools[0].annotations is not None
     assert tools[0].annotations.read_only_hint is True
     assert tools[0].input_schema["properties"]["count"]["maximum"] == 200
@@ -178,6 +191,14 @@ async def test_server_offers_get_candles_as_a_read_only_tool(tmp_path: Path) -> 
     assert forecast_tool.output_schema is not None
     expected_return = forecast_tool.output_schema["properties"]["expected_return"]
     assert "fraction" in expected_return["description"]
+    analysis_tool = tools[2]
+    assert analysis_tool.annotations is not None
+    assert analysis_tool.annotations.read_only_hint is True
+    assert analysis_tool.annotations.open_world_hint is False
+    assert analysis_tool.input_schema.get("properties", {}) == {}
+    assert analysis_tool.output_schema is not None
+    hit_rate = analysis_tool.output_schema["properties"]["hit_rate"]
+    assert "fraction" in hit_rate["description"]
 
 
 @pytest.mark.anyio
@@ -337,6 +358,97 @@ async def test_get_forecast_never_calls_the_exchange(tmp_path: Path) -> None:
     exchange.reachable = False  # it would raise if called
 
     result = await _get_forecast(cache)
+
+    assert not result.is_error, result.content
+    assert exchange.fetch_calls == []
+
+
+@pytest.mark.anyio
+async def test_analyze_forecast_returns_the_after_cost_analysis(
+    tmp_path: Path,
+) -> None:
+    exchange = FakeExchange(
+        [candle(0, close=100.0), candle(1, close=101.0), candle(2, close=102.0)],
+        now_ms=3 * HOUR_MS,
+    )
+    cache = _cache(exchange, tmp_path)
+    cache.update()
+
+    result = await _analyze_forecast(cache)
+
+    assert not result.is_error, result.content
+    expected_return = 102 / 101 - 1
+    assert result.structured_content == {
+        "market": "BTC/EUR",
+        "interval": "1h",
+        "model": "repeat-last-return",
+        "applies_to": "1970-01-01T03:00:00+00:00",
+        "based_on": "1970-01-01T02:00:00+00:00",
+        "is_current": True,
+        "warning": None,
+        "expected_return": pytest.approx(expected_return),
+        "round_trip_cost": pytest.approx(0.007),
+        "expected_return_after_costs": pytest.approx(expected_return - 0.007),
+        "threshold": pytest.approx(0.007),
+        "clears_entry_threshold": True,
+        "clears_exit_threshold": False,
+        "hit_rate": 1.0,  # candle 2 rose, as candle 1 did
+        "hit_rate_candles": 1,
+    }
+
+
+@pytest.mark.anyio
+async def test_analyze_forecast_uses_the_servers_settings(tmp_path: Path) -> None:
+    exchange = FakeExchange(
+        [candle(0, close=100.0), candle(1, close=101.0)], now_ms=2 * HOUR_MS
+    )
+    cache = _cache(exchange, tmp_path)
+    cache.update()
+
+    settings = Settings(fee=0.0, slippage=0.0, threshold=0.02)
+    content = (await _analyze_forecast(cache, settings)).structured_content
+
+    assert content["round_trip_cost"] == 0.0
+    assert content["expected_return_after_costs"] == pytest.approx(0.01)
+    assert content["threshold"] == 0.02
+    assert content["clears_entry_threshold"] is False
+
+
+@pytest.mark.anyio
+async def test_analyze_forecast_flags_a_stale_cache(tmp_path: Path) -> None:
+    exchange = FakeExchange([candle(h) for h in range(3)], now_ms=3 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    cache.update()
+    exchange.now_ms = 5 * HOUR_MS  # two more periods closed; cache not updated
+
+    content = (await _analyze_forecast(cache)).structured_content
+
+    assert content["is_current"] is False
+    assert "get_candles" in content["warning"]
+
+
+@pytest.mark.anyio
+async def test_analyze_forecast_explains_too_little_history(tmp_path: Path) -> None:
+    cache = _cache(FakeExchange([], now_ms=3 * HOUR_MS), tmp_path)
+
+    result = await _analyze_forecast(cache)
+
+    assert result.is_error
+    text = result.content[0].text
+    assert "needs 2" in text
+    assert "holds 0" in text
+    assert "uv run fartt download --market BTC/EUR --interval 1h" in text
+
+
+@pytest.mark.anyio
+async def test_analyze_forecast_never_calls_the_exchange(tmp_path: Path) -> None:
+    exchange = FakeExchange([candle(h) for h in range(3)], now_ms=3 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    cache.update()
+    exchange.fetch_calls.clear()
+    exchange.reachable = False  # it would raise if called
+
+    result = await _analyze_forecast(cache)
 
     assert not result.is_error, result.content
     assert exchange.fetch_calls == []
