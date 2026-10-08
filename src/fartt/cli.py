@@ -3,7 +3,6 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
@@ -71,7 +70,6 @@ def main(argv: Sequence[str] | None = None) -> None:
     logger.remove()
     logger.add(sys.stderr, level="INFO", format=LOG_FORMAT)
     logger.add("logs/cli.log", rotation="1 MB", level="INFO", format=LOG_FORMAT)
-    load_dotenv(find_dotenv())
 
     if args.command == "download":
         _download(parser, args.assets_dir, args.exchange, args.market, args.interval)
