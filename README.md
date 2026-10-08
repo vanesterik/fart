@@ -41,7 +41,7 @@ task setup
 
 ## Usage
 
-One command works end to end today: downloading candle data.
+Two commands work today: `fartt download` fills a local candle cache, and `fartt serve` runs the MCP server that Claude Code starts.
 
 ```bash
 uv run fartt download --assets-dir assets --market BTC/EUR --interval 1h
@@ -65,12 +65,12 @@ Once the later epics land, a `/loop` in a Claude Code session runs one cycle per
 
 ```mermaid
 sequenceDiagram
-    participant Loop as /loop (Claude Code)
+    participant Cycle as /loop (Claude Code)
     participant Agent
     participant Server as fartt MCP server
     participant Exchange
 
-    Loop->>Agent: run the trading-cycle prompt
+    Cycle->>Agent: run the trading-cycle prompt
     Agent->>Server: get_candles
     Server->>Exchange: fetch closed candles
     Server-->>Agent: latest candles, is_current
@@ -78,8 +78,13 @@ sequenceDiagram
     Agent->>Server: get_portfolio, get_risk_status (planned)
     alt the forecast clears the threshold after costs
         Agent->>Server: propose_order, place_order (planned)
+        Note over Agent,Server: stages 1 and 3: the operator approves each order in Claude Code
         Server->>Server: check against the risk limits
-        Server->>Exchange: place the order and its stop-loss
+        alt paper stages
+            Server->>Server: simulate the fill and the stop-loss
+        else live stages
+            Server->>Exchange: place the order and its stop-loss
+        end
     else
         Note over Agent: hold
     end
