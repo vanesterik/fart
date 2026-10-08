@@ -244,10 +244,12 @@ Written **just in time**: full stories with acceptance criteria become GitHub is
 - A4 (#53). Remove superseded code and dependencies (`core/exchange.py`, `core/dashboard.py`, `core/broker.py`, `python_bitvavo_api`)
 
 **C. Forecast tools**
-- C1. Forecaster interface with a naive-baseline implementation
-- C2. `get_forecast`
-- C3. `analyze_forecast`: expected return after fees and slippage, threshold, recent hit rate
-- C4. `get_model_info`
+- C0 (#69). End-to-end check of the MCP server over stdio, built first so each tool story extends it
+- #74. Rename `Magnitude` to `Return` in the code (tech debt, done before C1 so the forecaster uses the new names)
+- C1 (#70). Forecaster interface with a naive-baseline implementation
+- C2 (#71). `get_forecast`
+- C3 (#72). `analyze_forecast`: expected return after fees and slippage, threshold, recent hit rate
+- C4 (#73). `get_model_info`
 
 **D. Paper trading and risk**
 - D1. Risk config and `get_risk_status`
