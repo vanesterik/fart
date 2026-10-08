@@ -1,0 +1,150 @@
+"""
+End-to-end check of the MCP server over stdio, the way Claude Code runs it:
+the command and arguments come from the project's `.mcp.json`. Calls the
+live exchange, so it's marked `network` (run with `task test:network`).
+
+Each tool story adds its tool to `EXPECTED_TOOLS` and its call to
+`test_trading_cycle_over_stdio`, in trading-cycle order.
+"""
+
+import json
+import queue
+import subprocess
+import threading
+from pathlib import Path
+from typing import Any
+
+import pytest
+from mcp import Client, StdioServerParameters
+from mcp.types import LATEST_PROTOCOL_VERSION
+
+ROOT = Path(__file__).resolve().parents[2]
+EXPECTED_TOOLS = ["get_candles"]
+RESPONSE_TIMEOUT_S = 120
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+def _server_command(assets_dir: Path) -> list[str]:
+    server = json.loads((ROOT / ".mcp.json").read_text())["mcpServers"]["fartt"]
+    # argparse takes the last value of a repeated option, so these override
+    # .mcp.json's market interval while keeping its registration as is.
+    return [
+        server["command"],
+        *server["args"],
+        "--assets-dir",
+        str(assets_dir),
+        "--interval",
+        "1d",
+    ]
+
+
+@pytest.mark.network
+@pytest.mark.anyio
+async def test_trading_cycle_over_stdio(tmp_path: Path) -> None:
+    command, *args = _server_command(tmp_path)
+    params = StdioServerParameters(command=command, args=args, cwd=str(ROOT))
+
+    async with Client(params) as client:
+        tools = sorted(tool.name for tool in (await client.list_tools()).tools)
+        assert tools == sorted(EXPECTED_TOOLS)
+
+        candles = await client.call_tool("get_candles", {"count": 5})
+        assert not candles.is_error, candles.content
+        content = candles.structured_content
+        assert content["market"] == "BTC/EUR"
+        assert content["interval"] == "1d"
+        assert content["columns"] == ["time", "open", "high", "low", "close", "volume"]
+        assert len(content["rows"]) == 5
+        assert content["is_current"] is True
+        assert content["warning"] is None
+
+
+@pytest.mark.network
+def test_stdout_carries_only_the_protocol(tmp_path: Path) -> None:
+    messages: list[dict[str, Any]] = [
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": LATEST_PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": {"name": "fartt-e2e", "version": "0"},
+            },
+        },
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+        {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {"name": "get_candles", "arguments": {"count": 2}},
+        },
+    ]
+    process = subprocess.Popen(
+        _server_command(tmp_path),
+        cwd=ROOT,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    assert process.stdin is not None and process.stdout is not None
+
+    # Read stdout on a thread: readline() blocks, and a deadline per line
+    # keeps a hung server from hanging the test run. None marks the end.
+    lines: queue.Queue[str | None] = queue.Queue()
+    stdout = process.stdout
+
+    def read_stdout() -> None:
+        for line in iter(stdout.readline, ""):
+            lines.put(line)
+        lines.put(None)
+
+    threading.Thread(target=read_stdout, daemon=True).start()
+
+    received: list[dict[str, Any]] = []
+
+    def next_line() -> str | None:
+        try:
+            return lines.get(timeout=RESPONSE_TIMEOUT_S)
+        except queue.Empty:
+            pytest.fail(f"no output within {RESPONSE_TIMEOUT_S} s; got {received}")
+
+    def check(line: str) -> dict[str, Any]:
+        try:
+            parsed: dict[str, Any] = json.loads(line)
+        except json.JSONDecodeError:
+            pytest.fail(f"stdout carried a non-JSON line: {line!r}")
+        assert parsed.get("jsonrpc") == "2.0", f"not a JSON-RPC message: {line!r}"
+        return parsed
+
+    try:
+        for message in messages:
+            process.stdin.write(json.dumps(message) + "\n")
+        process.stdin.flush()
+
+        # Keep stdin open until the last response: closing it ends the
+        # session before a tool call (run on a worker thread) can answer.
+        while not any(message.get("id") == 3 for message in received):
+            line = next_line()
+            if line is None:
+                pytest.fail(f"server closed stdout early; got {received}")
+            received.append(check(line))
+    finally:
+        process.stdin.close()
+
+    # Then read to the end: output buffered before serving started only
+    # reaches stdout when the process exits.
+    while (line := next_line()) is not None:
+        received.append(check(line))
+    process.wait(timeout=30)
+
+    responses = {message["id"]: message for message in received if "id" in message}
+    assert set(responses) == {1, 2, 3}
+    assert "error" not in responses[3]
+    assert responses[3]["result"].get("isError") is not True
