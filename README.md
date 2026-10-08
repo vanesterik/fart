@@ -27,7 +27,7 @@ The work is delivered in epics, in this order:
 5. **[Unattended Operation](https://github.com/vanesterik/fartt/issues/48)**: paper trading without approvals.
 6. **[Live Trading](https://github.com/vanesterik/fartt/issues/49)**: a small live experiment, first with approvals.
 
-What works today: `fartt download` fills a local candle cache, a Claude Code session in this directory can fetch the latest candles through `get_candles` a forecast of the next candle's return through `get_forecast`, and that forecast after trading costs through `analyze_forecast`, and the candidate models are trained and evaluated in the notebooks.
+What works today: `fartt download` fills a local candle cache, and the candidate models are trained and evaluated in the notebooks. A Claude Code session in this directory can fetch the latest candles through `get_candles`, a forecast of the next candle's return through `get_forecast`, and that forecast after trading costs through `analyze_forecast`.
 
 ## Installation
 
