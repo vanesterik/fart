@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 
 from fartt import cli
+from fartt.forecast import RepeatLastReturn
 from tests.fakes import HOUR_MS, FakeExchange, candle
 
 
@@ -34,8 +35,16 @@ class FakeServer:
 def served(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     built: dict[str, Any] = {}
 
-    def fake_build_server(cache: Any, market: str, interval: str) -> FakeServer:
-        built.update(cache=cache, market=market, interval=interval, server=FakeServer())
+    def fake_build_server(
+        cache: Any, market: str, interval: str, forecaster: Any
+    ) -> FakeServer:
+        built.update(
+            cache=cache,
+            market=market,
+            interval=interval,
+            forecaster=forecaster,
+            server=FakeServer(),
+        )
         return built["server"]
 
     monkeypatch.setattr(cli, "build_server", fake_build_server)
@@ -149,6 +158,7 @@ def test_serve_runs_the_server_for_the_configured_market(
     assert served["market"] == "BTC/EUR"
     assert served["interval"] == "1h"
     assert served["cache"].filepath == tmp_path / "BTC-EUR-1h.csv"
+    assert served["forecaster"] == RepeatLastReturn()
     assert served["server"].ran
 
 

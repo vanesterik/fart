@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from fartt.candle_cache import DEFAULT_HISTORY_START_MS, CandleCache
 from fartt.exchange import CcxtExchange, ExchangeUnavailable
+from fartt.forecast import RepeatLastReturn
 from fartt.server import build_server
 
 LOG_FORMAT = (
@@ -168,7 +169,7 @@ def _serve(
         parser, assets_dir, exchange, market, interval, require_exchange=False
     )
     logger.info(f"Serving {market} {interval} candles from {cache.filepath} over stdio")
-    build_server(cache, market, interval).run()
+    build_server(cache, market, interval, RepeatLastReturn()).run()
 
 
 if __name__ == "__main__":
