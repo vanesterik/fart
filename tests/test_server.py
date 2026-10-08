@@ -300,6 +300,22 @@ async def test_get_forecast_flags_a_stale_cache(tmp_path: Path) -> None:
 
 
 @pytest.mark.anyio
+async def test_get_forecast_stale_warning_holds_on_any_stale_get_candles(
+    tmp_path: Path,
+) -> None:
+    # get_candles already ran, but the exchange hasn't published the newest
+    # candle: the warning must end the cycle, not send the agent back.
+    exchange = FakeExchange([candle(0), candle(1)], now_ms=3 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    await _get_candles(cache)
+
+    warning = (await _get_forecast(cache)).structured_content["warning"]
+
+    assert "also reports is_current: false" in warning
+    assert "hold" in warning
+
+
+@pytest.mark.anyio
 async def test_get_forecast_explains_too_little_history(tmp_path: Path) -> None:
     cache = _cache(FakeExchange([], now_ms=3 * HOUR_MS), tmp_path)
 

@@ -220,8 +220,8 @@ def build_server(
             warning = (
                 "The newest cached candle is older than the most recently "
                 "closed period, so this forecast may be stale. Call get_candles "
-                "first to update the cache; if it reports the exchange "
-                "unreachable, treat this cycle as a hold."
+                "first to update the cache; if it also reports is_current: "
+                "false, treat this cycle as a hold."
             )
 
         logger.info(
