@@ -14,9 +14,23 @@ The epic also turns the throwaway stdio checks used for #52 into a committed end
 
 ## Decisions
 
+- **Every return, cost, threshold and rate is a fraction,** in tool output and in `fartt serve`'s options: `0.007` means 0.7%, and a hit rate of `0.55` means 55%. Field descriptions say so, so the agent never has to guess the scale. (Percentages in this document are for readability only.)
+
 - **Settings are `fartt serve` options with defaults** (`--fee`, `--slippage`, `--threshold`, `--hit-rate-window`). `.mcp.json` doesn't change unless the defaults should. They can move into the config file that epic D introduces for the risk limits, which the agent must not be able to change.
 - **The forecast target stays the candle's simple return,** `close[t] / close[t-1] - 1` as a fraction (`0.004` = +0.4%). It's in the same units as profit and loss, fees and slippage, and `calculate_trade_returns` compounds it. Log returns differ negligibly at this scale (a 0.20% move is 0.1998% as a log return); a model that trains better on them can convert internally.
 - **It's called a return, not a magnitude.** "Magnitude" normally means size without sign, while here the sign carries the direction. The tools say `expected_return`, and #74 renames the code (`Magnitude` → `Return`, `calculate_magnitude` → `calculate_returns`, and so on) right after #69, before #70 builds on it.
+
+  The #74 rename, in full ("candle return", because plain "returns" already means per-trade results in `calculate_trade_returns`):
+
+  | Now | After #74 |
+  |---|---|
+  | `MAGNITUDE = "Magnitude"` (`constants.py`) | `CANDLE_RETURN = "Return"` |
+  | `features/calculate_magnitude.py::calculate_magnitude` | `features/calculate_candle_returns.py::calculate_candle_returns` |
+  | `calculate_trade_returns(magnitudes, predicted_magnitudes, ...)` | `calculate_trade_returns(candle_returns, predicted_candle_returns, ...)` |
+  | `visualization/magnitude.py::plot_magnitude` | `visualization/candle_returns.py::plot_candle_returns` |
+  | `tests/features/test_calculate_magnitude.py` | `tests/features/test_calculate_candle_returns.py` |
+
+  Plus local variables, docstrings, chart labels and the notebooks. Prose that uses "magnitude" in its ordinary sense (size without sign, e.g. "magnitude and direction are readable at a glance") stays.
 - **Approach A: a forecast package of plain functions, with thin tools in `server.py`.** The arithmetic is testable without MCP, and epic B's model implements the same Protocol. With four tools, `server.py` is about 300 lines. Epic D, which adds about eight tools, is the moment to decide whether to split the tools into modules grouped by data, forecast, portfolio and orders. The logic-in-packages part stays either way.
 - **The baseline is "repeat the last return".** "No change" always forecasts 0 and would never give the loop a signal to act on. Both are the PRD's naive baselines, and beating them is the bar for epic B's models.
 
@@ -32,10 +46,11 @@ src/fartt/forecast/
 └── analysis.py     # Settings, Analysis, analyze()
 ```
 
-- **`Forecaster`** is a `Protocol`, in the style of `ModelBuilder` and `Exchange`:
-  - `name: str`, e.g. `"repeat-last-return"`
-  - `kind: str`, e.g. `"naive baseline"` (epic B's model: `"trained model"`)
-  - `required_candles: int`: how many closed candles it needs
+- **`Forecaster`** is a `Protocol`, in the style of `ModelBuilder` and `Exchange`. Its three descriptive members are declared as read-only `@property`s, so frozen dataclasses and plain classes both satisfy it under pyright strict (a writable Protocol attribute rejects a frozen implementation):
+  - `name -> str`, e.g. `"repeat-last-return"`
+  - `kind -> str`, e.g. `"naive baseline"` (epic B's model: `"trained model"`)
+  - `required_candles -> int`: how many closed candles it needs
+  - `trained_through_ms -> int | None`: the open time of the last candle in its training data, or `None` for a model that isn't trained (the baseline); used to keep the hit rate out-of-sample (section 2)
   - `predict(candles: Sequence[Candle]) -> float`: the expected return of the candle after the last one given, as a fraction
 
   The model only predicts. Timestamps, freshness and costs are handled around it, so a trained model has one method to implement.
@@ -54,15 +69,18 @@ src/fartt/forecast/
 | `--threshold` | round-trip cost | Minimum expected return to act on |
 | `--hit-rate-window` | `100` | Recent candles the hit rate covers |
 
+**Validation** at startup, through `parser.error` (exit code 2): `--fee` and `--slippage` must be `>= 0`, `--threshold` must be `>= 0` (a negative threshold would set both flags for small forecasts), and `--hit-rate-window` must be `>= 1`. A threshold below the round-trip cost is allowed, as in the backtest, but logged as a warning at startup, since entries could then lose money on costs alone.
+
 **`analyze(forecaster, candles, interval_ms, settings) -> Analysis`** is a pure function of the candles and the settings. It returns:
 
 - `expected_return`: the latest forecast.
-- `round_trip_cost` = `2 × (fee + slippage)` (0.7% with the defaults).
+- `round_trip_cost` = `2 × (fee + slippage)` (`0.007` with the defaults).
 - `expected_return_after_costs` = `expected_return − round_trip_cost`: the expected result of buying now and selling one candle later (long-only).
 - `threshold`, plus two flags using the same rules as `calculate_trade_returns`, so the analysis and the backtest always agree:
   - `clears_entry_threshold`: `expected_return > threshold` (a long position would be worth opening);
   - `clears_exit_threshold`: `expected_return < −threshold` (an open position would be worth closing; used by epic D).
-- `hit_rate` and `hit_rate_candles`. Over the last `hit_rate_window` closed candles, the forecaster predicts each candle from the `required_candles` before it. The hit rate is the fraction where the predicted direction matches the realised return; candles where either value is exactly 0 are skipped. `hit_rate_candles` is how many candles were scored. The window shortens with too little history, and `hit_rate` is `null` when nothing could be scored.
+- `hit_rate` and `hit_rate_candles`. Over the last `hit_rate_window` closed candles, the forecaster predicts each candle from the `required_candles` before it, so no prediction sees the candle it's scored on. The hit rate is the fraction where the predicted direction matches the realised return; candles where either value is exactly 0 are skipped. `hit_rate_candles` is how many candles were scored. The window shortens with too little history, and `hit_rate` is `null` when nothing could be scored.
+- **The hit rate is out-of-sample.** A trained model has seen its training data, so scoring candles inside it would overstate how far to trust it. Only candles that open after `forecaster.trained_through_ms` are scored (all of them for the baseline, whose value is `None`). Right after training, the window may hold few such candles; `hit_rate_candles` says how many, and `hit_rate` is `null` if none.
 
 The analysis reports numbers and flags only. Deciding to trade is the agent's job, constrained in epic D by the server's risk limits.
 
@@ -83,7 +101,8 @@ All three tools:
 | `get_model_info` (#73) | `name`, `kind`, `required_candles`, `trained_at`, `metrics`, `note`, `newest_cached`, `newest_closed`, `is_current` |
 
 - For the baseline, `trained_at` and `metrics` are `null`, with a `note` that a naive baseline has no training or backtest and that epic B fills them in.
-- Too little history is a `ToolError` naming how many candles are needed and how many are cached, and suggesting `fartt download` or a retry next cycle.
+- `get_model_info` always answers, even with an empty cache: then `newest_cached` is `null`, `is_current` is `false`, and the `note` says the cache is empty. It describes the model and the data, so an empty cache is information, not an error.
+- Too little history is a `ToolError` naming how many candles are needed and how many are cached, and giving the exact command for the server's own cache, e.g. `uv run fartt download --market BTC/EUR --interval 1h` (the command's default interval is `1d`, so a bare `fartt download` would fill the wrong cache), or a retry next cycle.
 - The server's `instructions` describe the cycle order (`get_candles` → `get_forecast` → `analyze_forecast`) and `get_model_info` for judging trust.
 
 ### 4. The end-to-end check (#69)
