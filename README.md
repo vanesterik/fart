@@ -55,7 +55,7 @@ The MCP server exposes the cache to Claude Code. It's registered in `.mcp.json`,
 uv run fartt download --market BTC/EUR --interval 1h
 ```
 
-There is no `train` command. Training and evaluation run from the notebooks, one per candidate architecture: `notebooks/2.0-kve-data-analysis-mlp.ipynb` (MLP) and `notebooks/2.1-kve-data-analysis-cnn.ipynb` (CNN). Each loads the cached data, computes the target signal (`Magnitude`, signed percent-change), builds sliding lag windows with a chronological 60/20/20 train/val/test split, fits its model (see [Project Status](#project-status)), and reports directional accuracy, RMSE and MAE. Neither saves a checkpoint yet.
+There is no `train` command. Training and evaluation run from the notebooks, one per candidate architecture: `notebooks/2.0-kve-data-analysis-mlp.ipynb` (MLP) and `notebooks/2.1-kve-data-analysis-cnn.ipynb` (CNN). Each loads the cached data, computes the target (the candle return: the signed percent change as a fraction), builds sliding lag windows with a chronological 60/20/20 train/val/test split, fits its model (see [Project Status](#project-status)), and reports directional accuracy, RMSE and MAE. Neither saves a checkpoint yet.
 
 Run `uv run fartt --help` for the full set of options. What comes next is in the [PRD](docs/product/mcp-trading-agent-prd.md) and the epics above.
 
@@ -133,11 +133,11 @@ The project follows the [cookiecutter data science project template](https://dri
         │
         ├── features       <- Feature engineering over Polars DataFrames.
         │   ├── calculate_technical_indicators.py
-        │   ├── calculate_magnitude.py
+        │   ├── calculate_candle_returns.py
         │   └── calculate_trade_returns.py
         │
         ├── model          <- Regression pipeline epic B (Model Selection) builds on.
-        │   ├── prepare_datasets.py   <- Loads candles, computes Magnitude, builds lag windows + split.
+        │   ├── prepare_datasets.py   <- Loads candles, computes candle returns, builds lag windows + split.
         │   ├── builder.py            <- ModelBuilder Protocol every architecture's builder satisfies.
         │   ├── blocks.py             <- Reusable linear/conv blocks.
         │   ├── mlp_config.py         <- MLP hyperparameters.
