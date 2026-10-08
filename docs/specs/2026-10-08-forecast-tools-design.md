@@ -1,7 +1,7 @@
 # Forecast Tools — Design
 
 **Date:** 2026-10-08
-**Status:** Draft, awaiting review
+**Status:** Approved
 **Source:** [Epic #45: Forecast Tools](https://github.com/vanesterik/fartt/issues/45), stories [#69](https://github.com/vanesterik/fartt/issues/69), [#74](https://github.com/vanesterik/fartt/issues/74), [#70](https://github.com/vanesterik/fartt/issues/70), [#71](https://github.com/vanesterik/fartt/issues/71), [#72](https://github.com/vanesterik/fartt/issues/72) and [#73](https://github.com/vanesterik/fartt/issues/73)
 **Related PRD:** `docs/product/mcp-trading-agent-prd.md` (§5 Solution Overview, §7 epic C)
 **Builds on:** `docs/specs/2026-10-07-server-foundation-design.md` (epic A: exchange layer, candle cache, MCP server)
