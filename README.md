@@ -128,6 +128,10 @@ The project follows the [cookiecutter data science project template](https://dri
         │   ├── ccxt_exchange.py   <- Its ccxt implementation (Bitvavo by default).
         │   └── candle.py          <- The Candle type.
         │
+        ├── forecast       <- The Forecaster interface and the naive baseline.
+        │   ├── forecaster.py      <- Forecaster Protocol, Forecast, forecast().
+        │   └── baseline.py        <- RepeatLastReturn.
+        │
         ├── server         <- The MCP server.
         │   └── server.py      <- build_server() and the get_candles tool.
         │
@@ -146,8 +150,7 @@ The project follows the [cookiecutter data science project template](https://dri
         │   ├── cnn_builder.py        <- Assembles the CNN from its config.
         │   ├── train_model.py        <- Fits an already-built model; records per-epoch loss history.
         │   ├── evaluate_model.py     <- Directional accuracy, RMSE and MAE on train/test.
-        │   ├── persist_model.py      <- Checkpoint save/load.
-        │   └── predict_model.py      <- Empty stub; not yet connected to a signal path.
+        │   └── persist_model.py      <- Checkpoint save/load.
         │
         └── visualization  <- Matplotlib/seaborn plotting helpers for notebooks.
 ```
