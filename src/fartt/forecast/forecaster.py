@@ -81,6 +81,12 @@ def forecast(
 
     """
     needed = forecaster.required_candles
+    if needed < 1:
+        # A forecast is based on its newest candle; slicing with 0 or a
+        # negative count would silently hand `predict` the wrong window.
+        raise ValueError(
+            f"Forecaster '{forecaster.name}' must need at least 1 candle, not {needed}"
+        )
     if len(candles) < needed:
         raise NotEnoughCandles(needed, len(candles))
 
