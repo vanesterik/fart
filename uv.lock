@@ -586,7 +586,6 @@ name = "fartt"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "babel" },
     { name = "ccxt" },
     { name = "jupyter" },
     { name = "loguru" },
@@ -598,9 +597,7 @@ dependencies = [
     { name = "polars" },
     { name = "pyarrow" },
     { name = "pydantic" },
-    { name = "python-bitvavo-api" },
     { name = "python-dotenv" },
-    { name = "rich" },
     { name = "scikit-learn" },
     { name = "seaborn" },
     { name = "ta-lib" },
@@ -620,7 +617,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "babel", specifier = ">=2.17.0" },
     { name = "ccxt", specifier = ">=4.5.85" },
     { name = "jupyter", specifier = ">=1.0.0" },
     { name = "loguru", specifier = ">=0.7.3" },
@@ -632,9 +628,7 @@ requires-dist = [
     { name = "polars", specifier = ">=1.36.1" },
     { name = "pyarrow", specifier = ">=25.0.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "python-bitvavo-api", specifier = ">=1.4.3" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
-    { name = "rich", specifier = ">=14.2.0" },
     { name = "scikit-learn", specifier = ">=1.9.0" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "ta-lib", specifier = ">=0.7.1" },
@@ -1290,18 +1284,6 @@ wheels = [
 ]
 
 [[package]]
-name = "markdown-it-py"
-version = "4.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "mdurl" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5b/f5/4ec618ed16cc4f8fb3b701563655a69816155e79e24a17b651541804721d/markdown_it_py-4.0.0.tar.gz", hash = "sha256:cb0a2b4aa34f932c007117b194e945bd74e0ec24133ceb5bac59009cda1cb9f3", size = 73070, upload-time = "2025-08-11T12:57:52.854Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/54/e7d793b573f298e1c9013b8c4dade17d481164aa517d1d7148619c2cedbf/markdown_it_py-4.0.0-py3-none-any.whl", hash = "sha256:87327c59b172c5011896038353a81343b6754500a08cd7a4973bb48c6d578147", size = 87321, upload-time = "2025-08-11T12:57:51.923Z" },
-]
-
-[[package]]
 name = "markupsafe"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1426,15 +1408,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9e/2d/7c251e34207f6c51000312fc8839111ac45cfe02023f90b44e7f1051dd8e/mcp_types-2.3.0.tar.gz", hash = "sha256:d1e46549edb35ee19a94940fcee6d1addd7e589ab7ea92dda83f5d84781fc362", size = 65898, upload-time = "2026-10-02T22:06:57.863Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ce/48/32583066b155bb5d4507e7887dc88ee23118cc4de8e2a12870c49719e2a8/mcp_types-2.3.0-py3-none-any.whl", hash = "sha256:968efdbdaedfab06adae40d378a34395f1090c5921d4be3c9cde283aaf76d91d", size = 69108, upload-time = "2026-10-02T22:06:54.099Z" },
-]
-
-[[package]]
-name = "mdurl"
-version = "0.1.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
 ]
 
 [[package]]
@@ -2113,20 +2086,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python-bitvavo-api"
-version = "1.4.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-    { name = "setuptools" },
-    { name = "websocket-client" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ea/90/ac8d74ee991ffff6aa0a250158af50172add2176eb1f3ef680af4b8eb97f/python_bitvavo_api-1.4.3.tar.gz", hash = "sha256:e5a2c751f5f29aa85fd9dbc9571ac6dd4728964142facc8a4d4c0efd320b9ead", size = 14838, upload-time = "2025-05-14T13:31:04.683Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/54/1e/ccd3cd52e970f4551401ae4bfd493e7c5efeae6acd3f45697acf127f1aff/python_bitvavo_api-1.4.3-py3-none-any.whl", hash = "sha256:9187d96bda1afa3956f6d7f78c78b1729011c2771bdf888e1c972617e260b8ab", size = 12461, upload-time = "2025-05-14T13:31:03.367Z" },
-]
-
-[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 source = { registry = "https://pypi.org/simple" }
@@ -2304,19 +2263,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/2c/06/37c1a5557acf449e8e406a830a05bf885ac47d33270aec454ef78675008d/rfc3987_syntax-1.1.0.tar.gz", hash = "sha256:717a62cbf33cffdd16dfa3a497d81ce48a660ea691b1ddd7be710c22f00b4a0d", size = 14239, upload-time = "2025-07-18T01:05:05.015Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7e/71/44ce230e1b7fadd372515a97e32a83011f906ddded8d03e3c6aafbdedbb7/rfc3987_syntax-1.1.0-py3-none-any.whl", hash = "sha256:6c3d97604e4c5ce9f714898e05401a0445a641cfa276432b0a648c80856f6a3f", size = 8046, upload-time = "2025-07-18T01:05:03.843Z" },
-]
-
-[[package]]
-name = "rich"
-version = "14.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "markdown-it-py" },
-    { name = "pygments" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fb/d2/8920e102050a0de7bfabeb4c4614a49248cf8d5d7a8d01885fbb24dc767a/rich-14.2.0.tar.gz", hash = "sha256:73ff50c7c0c1c77c8243079283f4edb376f0f6442433aecb8ce7e6d0b92d1fe4", size = 219990, upload-time = "2025-10-09T14:16:53.064Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/7a/b0178788f8dc6cafce37a212c99565fa1fe7872c70c6c9c1e1a372d9d88f/rich-14.2.0-py3-none-any.whl", hash = "sha256:76bc51fe2e57d2b1be1f96c524b890b816e334ab4c1e45888799bfaab0021edd", size = 243393, upload-time = "2025-10-09T14:16:51.245Z" },
 ]
 
 [[package]]
