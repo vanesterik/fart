@@ -21,7 +21,7 @@ from mcp import Client, StdioServerParameters
 from mcp.types import LATEST_PROTOCOL_VERSION
 
 ROOT = Path(__file__).resolve().parents[2]
-EXPECTED_TOOLS = ["get_candles", "get_forecast", "analyze_forecast"]
+EXPECTED_TOOLS = ["get_candles", "get_forecast", "analyze_forecast", "get_model_info"]
 # Per response; also the MCP client's read timeout, which defaults to none.
 RESPONSE_TIMEOUT_S = 120
 
@@ -85,6 +85,18 @@ async def test_trading_cycle_over_stdio(tmp_path: Path) -> None:
         assert 0 < numbers["hit_rate_candles"] <= 100
         assert 0 <= numbers["hit_rate"] <= 1
         assert numbers["is_current"] is True
+
+        info = await client.call_tool("get_model_info", {})
+        assert not info.is_error, info.content
+        model = info.structured_content
+        assert model["name"] == "repeat-last-return"
+        assert model["kind"] == "naive baseline"
+        assert model["required_candles"] == 2
+        assert model["trained_at"] is None
+        assert model["metrics"] is None
+        assert model["newest_cached"] == content["rows"][-1][0]
+        assert model["newest_closed"] == model["newest_cached"]
+        assert model["is_current"] is True
 
 
 @pytest.mark.network

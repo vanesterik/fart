@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -5,7 +6,7 @@ import pytest
 from mcp import Client
 
 from fartt.candle_cache import CandleCache
-from fartt.forecast import RepeatLastReturn, Settings
+from fartt.forecast import Forecaster, RepeatLastReturn, Settings
 from fartt.server import build_server
 from tests.fakes import HOUR_MS, FakeExchange, candle
 
@@ -27,9 +28,17 @@ def _cache(exchange: FakeExchange, tmp_path: Path, batch_limit: int = 2) -> Cand
     )
 
 
-def _server(cache: CandleCache, settings: Settings | None = None) -> Any:
+def _server(
+    cache: CandleCache,
+    settings: Settings | None = None,
+    forecaster: Forecaster | None = None,
+) -> Any:
     return build_server(
-        cache, "BTC/EUR", "1h", RepeatLastReturn(), settings or Settings()
+        cache,
+        "BTC/EUR",
+        "1h",
+        forecaster or RepeatLastReturn(),
+        settings or Settings(),
     )
 
 
@@ -43,6 +52,13 @@ async def _analyze_forecast(
 ) -> Any:
     async with Client(_server(cache, settings)) as client:
         return await client.call_tool("analyze_forecast", {})
+
+
+async def _get_model_info(
+    cache: CandleCache, forecaster: Forecaster | None = None
+) -> Any:
+    async with Client(_server(cache, forecaster=forecaster)) as client:
+        return await client.call_tool("get_model_info", {})
 
 
 async def _get_candles(cache: CandleCache, **arguments: Any) -> Any:
@@ -179,6 +195,7 @@ async def test_server_offers_get_candles_as_a_read_only_tool(tmp_path: Path) -> 
         "get_candles",
         "get_forecast",
         "analyze_forecast",
+        "get_model_info",
     ]
     assert tools[0].annotations is not None
     assert tools[0].annotations.read_only_hint is True
@@ -199,6 +216,14 @@ async def test_server_offers_get_candles_as_a_read_only_tool(tmp_path: Path) -> 
     assert analysis_tool.output_schema is not None
     hit_rate = analysis_tool.output_schema["properties"]["hit_rate"]
     assert "fraction" in hit_rate["description"]
+    info_tool = tools[3]
+    assert info_tool.annotations is not None
+    assert info_tool.annotations.read_only_hint is True
+    assert info_tool.annotations.open_world_hint is False
+    assert info_tool.input_schema.get("properties", {}) == {}
+    assert info_tool.output_schema is not None
+    trained_through = info_tool.output_schema["properties"]["trained_through"]
+    assert "last candle in the training data" in trained_through["description"]
 
 
 @pytest.mark.anyio
@@ -449,6 +474,94 @@ async def test_analyze_forecast_never_calls_the_exchange(tmp_path: Path) -> None
     exchange.reachable = False  # it would raise if called
 
     result = await _analyze_forecast(cache)
+
+    assert not result.is_error, result.content
+    assert exchange.fetch_calls == []
+
+
+@pytest.mark.anyio
+async def test_get_model_info_describes_the_baseline(tmp_path: Path) -> None:
+    exchange = FakeExchange([candle(h) for h in range(3)], now_ms=3 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    cache.update()
+
+    result = await _get_model_info(cache)
+
+    assert not result.is_error, result.content
+    content = dict(result.structured_content)
+    note = content.pop("note")
+    assert content == {
+        "market": "BTC/EUR",
+        "interval": "1h",
+        "name": "repeat-last-return",
+        "kind": "naive baseline",
+        "required_candles": 2,
+        "trained_through": None,
+        "trained_at": None,
+        "metrics": None,
+        "newest_cached": "1970-01-01T02:00:00+00:00",
+        "newest_closed": "1970-01-01T02:00:00+00:00",
+        "is_current": True,
+    }
+    assert "no training date" in note
+    assert "trained model" in note
+
+
+@pytest.mark.anyio
+async def test_get_model_info_answers_with_an_empty_cache(tmp_path: Path) -> None:
+    cache = _cache(FakeExchange([], now_ms=3 * HOUR_MS), tmp_path)
+
+    result = await _get_model_info(cache)
+
+    assert not result.is_error, result.content
+    content = result.structured_content
+    assert content["newest_cached"] is None
+    assert content["newest_closed"] == "1970-01-01T02:00:00+00:00"
+    assert content["is_current"] is False
+    assert "empty" in content["note"]
+    assert "uv run fartt download --market BTC/EUR --interval 1h" in content["note"]
+
+
+@pytest.mark.anyio
+async def test_get_model_info_flags_stale_data(tmp_path: Path) -> None:
+    exchange = FakeExchange([candle(h) for h in range(3)], now_ms=3 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    cache.update()
+    exchange.now_ms = 5 * HOUR_MS  # two more periods closed; cache not updated
+
+    content = (await _get_model_info(cache)).structured_content
+
+    assert content["newest_cached"] == "1970-01-01T02:00:00+00:00"
+    assert content["newest_closed"] == "1970-01-01T04:00:00+00:00"
+    assert content["is_current"] is False
+    assert "get_candles" in content["note"]
+
+
+@pytest.mark.anyio
+async def test_get_model_info_reports_the_training_data_cutoff(
+    tmp_path: Path,
+) -> None:
+    exchange = FakeExchange([candle(h) for h in range(3)], now_ms=3 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    cache.update()
+    trained = replace(RepeatLastReturn(), trained_through_ms=HOUR_MS)
+
+    content = (await _get_model_info(cache, trained)).structured_content
+
+    assert content["trained_through"] == "1970-01-01T01:00:00+00:00"
+    assert content["trained_at"] is None  # the cutoff is not the training date
+    assert content["metrics"] is None
+
+
+@pytest.mark.anyio
+async def test_get_model_info_never_calls_the_exchange(tmp_path: Path) -> None:
+    exchange = FakeExchange([candle(h) for h in range(3)], now_ms=3 * HOUR_MS)
+    cache = _cache(exchange, tmp_path)
+    cache.update()
+    exchange.fetch_calls.clear()
+    exchange.reachable = False  # it would raise if called
+
+    result = await _get_model_info(cache)
 
     assert not result.is_error, result.content
     assert exchange.fetch_calls == []
